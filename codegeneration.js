@@ -144,7 +144,39 @@ function codeGeneration(ast) {
 			// NODE = EQUAL
 			else if (node.name == "equal?")
 			{
+				var leftchild = node.children[0].name;
+				var rightchild = node.children[1].name;
+				id1 = "";
+				id2 = "";				// Variables to hold potential findings
+				var lefttype = "";
+				var righttype = "";
+				var needEval = false;
 
+				if (isId(leftchild)) {
+					id1 = leftchild;
+					// Gets the type assignment from most recent declaration in sym table
+					var lefttype = STtypesearch(symbolTable.curr, id1);
+				}
+				else { 
+					var check = checkType(leftchild); 
+					lefttype = check[0];
+					if (check[1]) { needEval = true; }
+				}
+
+				if (isId(rightchild)) {
+					id2 = rightchild;
+					var lefttype = STtypesearch(symbolTable.curr, id2);
+				}
+				else {
+					var check = checkType(rightchild);
+					righttype = check[0];l
+					if (check[1]) { needEval = true; }
+				}
+
+				if (boolEqualFlag) {
+					// Evaluate so the boolean in flag has a value
+					// Branch and have next op be bool = true, then bool = false
+				}
 			}
 
 		// End branch node case

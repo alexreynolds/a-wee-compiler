@@ -240,6 +240,18 @@ function isOp(value) {
 	return (value == "+" || value == "-");
 }
 
+// Used to check the type of the given input, a node name
+// Returns a string indicating type of input
+function checkType(value) {
+	if (isId(value)) { return ["id", true]; }
+	else if (isOp(value)) { return ["int", true]; }
+	else if (isNumber(value)) { return ["int", false]; }
+	else if (value == "true" || value == "false") { return ["boolean", false]; }
+	else if (value == "equal?") { return ["boolean", true]}
+	else if (value.length > 1) { return "string"; }
+	else { return ["MYSTERY", false]; }
+}
+
 // Stores an integer to be used for boolean purposes at the beginning of the environment
 function setEnvironment () {
 
@@ -417,6 +429,11 @@ function intExprEval(startnode) {
 	if (id.length == 0) { return acc; }
 	// Else return array with acc and id found
 	else { return [acc, id]; }
+}
+
+// Evaluates equal? statements	*NOTE should pass flags in for things (used for if, while, bools)
+function equalEval() {
+
 }
 
 // Formats integers to be two digit strings
