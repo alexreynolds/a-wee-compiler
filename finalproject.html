@@ -1,0 +1,334 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+<title>A VERY ANNOYED COMPILER</title>
+</head>
+
+<style type="text/css">
+
+body {
+	font-family:Arial, Helvetica, sans-serif;
+	font-size:12px;
+    background-color:#33CCFF; 
+    text-align:right;
+    background:url("rage.jpg") no-repeat left fixed;
+}
+
+td {
+	vertical-align:top;
+	text-align:center;
+	padding:5px;
+}
+
+.content {
+    background-color:#000;
+    padding:3%;
+    display:inline-block;
+    text-align:center;
+    border-radius:10px;
+    color:#FFF;
+    margin-right:5%;
+}
+
+h1
+{
+    color:#FF0000;
+}
+
+</style>
+
+<body onload="init();">
+	
+<div class="content">
+
+<h2 align="center">Alex Reynolds - Compilers Project 2</h2>
+<h1 align="center">A VERY ANNOYED COMPILER</h1>
+<p align="center">Giving a voice to angry computers since 2013.</p><br>
+        
+<table align="center">
+<tr>
+<!--
+    <td>
+<p style="font-weight:bold">THE GRAMMAR</p><br>
+<pre style="text-align:left; font-size:12px">
+Program       ::== Statement $
+
+Statement     ::== print ( Expr )
+
+              ::== Id = Expr
+
+              ::== VarDecl
+
+              ::== { StatementList }
+
+StatementList ::== Statement StatementList
+
+              ::== ε
+
+Expr          ::== IntExpr
+
+              ::== StringExpr
+
+              ::== Id
+
+IntExpr       ::== digit op Expr
+
+              ::== digit
+
+StringExpr      ::== " CharList "
+
+CharList      ::== Char CharList
+
+              ::== Space CHarList
+
+              ::== ε
+
+VarDecl       ::== Type Id
+
+Type          ::== int | string
+
+Id            ::== Char
+
+Char          ::== a | b | c ... z
+
+Space         ::== the space character
+
+digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
+
+op            ::== + | -
+</pre>
+<td>
+-->
+<td>
+<textarea id="TAsourceCode" cols="50" rows="15" placeholder="PUT ALL YOUR CODE IN HERE AND MAKE SURE IT WORKS GOD DAMNIT."></textarea>
+        <br><br>
+        <input type="button" id="btnCompile" value="COMPILE, GO" onclick="btnCompile_click();"/>
+        <br><br>
+        <textarea id="output" cols="50" rows="30"></textarea>
+</td>
+
+<!-- SCRIPT TIME -->
+<script type="text/javascript" src="lexer.js"></script>	
+<script type="text/javascript" src="parse.js"></script>
+<script type="text/javascript" src="trees.js"></script>
+<script type="text/javascript" src="parsetree.js"></script>
+<script type="text/javascript" src="symboltable.js"></script>
+<script type="text/javascript">
+
+// Global variables
+
+var tokens = "";
+var tokenIndex = 0;
+var currentToken = "";
+var errorCount = 0;
+var EOF = "$";
+var failed = false;
+var scope;
+var symbolTable = "";
+var syntaxTree = "";    // CST
+var ast = "";            // AST
+var tokensForTree = ""; // Will hold a copy of tokens array for tree creation
+var treeGen;
+
+function init()
+    {
+        // Clear the message box
+        document.getElementById("output").value = "";
+		
+        // Set initial global values
+        tokens = new Array();
+        tokenIndex = 0;
+        currentToken = ' ';
+        errorCount = 0;
+        scope = -1; // tracks scope, 0 is first level      
+        syntaxTree = new Tree(); 
+        ast = new Tree();
+        tokensForTree = new Array();
+        treeGen = false;    // Tracks if we're generating a syntax tree
+        symbolTable = new SymbolTable();
+    }
+	
+// Token class
+function Token(current, kind, line, index) {
+		this.token = current;
+		this.kind = kind; 
+		this.line = line;
+		this.index = index;
+		this.toString = "Token: " + this.token + " : " + this.kind + " : " + this.line + " : " + this.index + ".";
+	}
+
+
+function btnCompile_click()
+    {        
+        init();
+		
+		// If there is no input to analyze
+		if (document.getElementById("TAsourceCode").value.length == 0)
+		{
+			putMessage("WHY ARE YOU TRYING TO COMPILE ABSOLUTELY NOTHING?\n\nTRY AGAIN");	
+		}
+		
+		else
+		{
+        putMessage("COMPILATION TIME");
+		
+        // Gets tokens from the lexer
+        //tokens = lex();
+		lex();
+        
+		putMessage("YOU GOT " + tokens.length + " TOKENS, LOOK UP IN CASE YOU DIDN'T NOTICE.");
+
+        // If there are no blocks of code, set scope to 0 automatically
+        if (!areBlocks)
+        {
+            scope = 0;
+        }
+
+        // Duplicates tokens
+        // One set is for parsing, one for tree creation
+        tokensForTree = tokens;
+		
+        // Parse tokens
+        parse();
+
+        // If there were no errors & program didn't fail (generally the same)
+        // Generate a CST
+        if (errorCount == 0 && !failed) 
+        {
+            putMessage("CONGRATS YOUR PROGRAM WASN'T AWFUL SO NOW WE CAN GENERATE A SYNTAX TREE FOR IT.");
+
+            // Reset tokens array to what it was before parse
+            tokens = tokensForTree;
+            // Reset token index to 0
+            tokenIndex = 0;
+            treeGen = true;
+
+
+            // Generate CST
+            putMessage("GENERATING A CST NOW.\n");
+            parseTree();
+
+            // Print out CST
+            var CSTstr = syntaxTree.toString();
+            putMessage(CSTstr);
+            putMessage("THERE'S YOUR DAMNED CONCRETE SYNTAX TREE.\n");
+
+            // Generate AST from CST
+            putMessage("GENERATING AN AST NOW.\n");
+            makeAST(syntaxTree);
+
+            // Print out AST
+            var ASTstr = ast.toString();
+            putMessage(ASTstr);
+            putMessage("AND THERE'S YOUR DAMNED ABSTRACT SYNTAX TREE.\n");
+
+            // Generate a symbol table from the AST
+            putMessage("BUILDING UP A SYMBOL TABLE NOW.\n");
+            buildSymbolTable(ast);
+
+            // If there are no errors return symbol table
+            if (errorCount == 0) {
+                // Print out the symbol table
+                var STstr = symbolTable.toString();
+                putMessage(STstr);
+                putMessage("AND THERE'S YOUR SYMBOL TABLE, SO THERE.");
+                putMessage("IT'S EVEN TYPE CHECKED AND EVERYTHING OH JOY.");
+            }
+
+
+        }
+
+		}
+    }
+	
+function putMessage(msg)
+    {
+        document.getElementById("output").value += msg + "\n";
+    }
+
+// UTILS
+
+function trim(str)      
+{
+	// Uses regular expression to remove leading and trailing spaces
+	return str.replace(/^\s+ | \s+$/g, "");
+}
+
+
+// Gets the next token from the tokens array, increases token index
+function getNextToken()
+    {
+		
+        var thisToken = EOF;    // Let's assume that we're at the EOF.
+        if (tokenIndex < tokens.length)
+        {
+            // If we're not at EOF, then return the next token in the stream and advance the index.
+            thisToken = tokens[tokenIndex];
+            if (!treeGen)
+            {
+                putMessage("Current token: " + thisToken.token);
+            }
+            tokenIndex++;
+        }
+		
+		
+		// UPDATES SYMBOL TABLE WITH THE NEXT TOKEN
+		/*
+		// If symbol is not yet in table, add
+        // Tokens such as (, ), {, } are ignored
+		if (!symbolTable[thisToken.token] && (thisToken.kind != "other") && (thisToken.kind != "EOF"))
+		{
+			symbolTable[thisToken.token] = [thisToken.kind, scope, thisToken.line, thisToken.index];
+		}
+        */
+		
+        return thisToken;
+
+    }
+
+// Checks the next token in the array (does not increase index)
+function checkNextToken()
+    {
+		
+        var thisToken = EOF;    // Let's assume that we're at the EOF.
+        if (tokenIndex < tokens.length)
+        {
+            // If we're not at EOF, then return the next token in the stream and advance the index.
+            thisToken = tokens[tokenIndex];
+        }
+		
+        return thisToken;
+    }
+
+function rot13(str)     
+{                       
+    var retVal = "";    
+    for (var i in str)
+    {
+        var ch = str[i];
+        var code = 0;
+        if ("abcedfghijklmABCDEFGHIJKLM".indexOf(ch) >= 0)
+        {            
+            code = str.charCodeAt(i) + 13;  // It's okay to use 13.  It's not a magic number, it's called rot13.
+            retVal = retVal + String.fromCharCode(code);
+        }
+        else if ("nopqrstuvwxyzNOPQRSTUVWXYZ".indexOf(ch) >= 0)
+        {
+            code = str.charCodeAt(i) - 13;  // It's okay to use 13.  See above.
+            retVal = retVal + String.fromCharCode(code);
+        }
+        else
+        {
+            retVal = retVal + ch;
+        }
+    }
+    return retVal;
+}
+
+</script>
+
+</div>
+
+</body>
+</html>
