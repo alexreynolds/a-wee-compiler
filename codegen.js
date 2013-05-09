@@ -29,69 +29,78 @@ function ExecEnv () {
 	this.currRow = this.content[0];
 
 	// Current index of last added cell
-	this.locindex = -1;
+	this.frontindex = -1;
 
 	// Current index of last open space in table
 	this.tailindex = this.content.length * 8;
-
-	// Number of last row in environment
-	// Rows are numbered starting at 0 and alternate between
-	//  	index%10 = 0	and		index%10 = 8
-	// Each row has 8 columns for data
-	// Index 0 in each row contains the row's number in the env
-	var rowindex = 0;
 
 	// Adds a new row to the table
 	this.newRow = function () {
 
 		// Constructs row
-		var row = [rowindex];
+		var row = [];
+
+		for (var i = 0; i < 8; i++)
+		{
+			row[i] = "";
+		}
 
 		// Adds row to table content
 		this.content.push(row);
-
-		// Increment rowindex appropriately
-		if (rowindex%10 == 0)
-		{
-			rowindex = rowindex + 8;
-		}
-		else
-		{
-			rowindex = rowindex + 2;
-		}
 	};
 
-	// Adds a new cell of entry to the table (an op code)
+	// Adds a new cell of entry to the table
 	this.addEntry = function (opcode) {
 
-		// Adds entry to the end of the current row
-		this.currRow.push(opcode);
+		var row = Math.floor(this.frontindex / this.content.length);
+		var column = this.frontindex % 8;
 
-		// If the row has reached maximum length (9), start a new row
-		if (this.currRow.length >= 9) {
-			var nextrow = this.content.indexOf(this.currRow);
-			this.currRow = this.content[nextrow];
-		}
+		// Adds entry to the first open spot in the current row
+		this.content[row][column] = opcode;
 
-		// Increments locindex
-		this.locindex++;
+		// Increments front end index
+		this.frontindex++;
 	};
 
 	// Adds a new cell of entry to the end of the table
 	this.addTailEntry = function (opcode) {
 
 		// Gets the index of where in the row the entry should go
-		var position = this.tailindex % 8;
+		var column = this.tailindex % 8;
 
 		// Gets the index of the row where the entry should go
-		var lastrow = Math.floor(this.tailindex / this.content.length);
+		var row = Math.floor(this.tailindex / this.content.length);
 
 		// Adds entry to the end of the current row
-		this.content[lastrow][position] = opcode;
+		this.content[row][column] = opcode;
 
 		// Decrements tailindex
 		this.tailindex--;
 	};
+
+	// A toString method, to return the op code for processing
+	this.toString = function () {
+
+		// String of code to be returned
+		finalopcode = "";
+
+		// Step through the table to add all of the values to the string
+
+		// Iterate through rows
+		for (var k = 0; k < this.content.length; k++) {
+			// Iterate through columns
+			for (var m = 0; m < 8; m++) {
+
+				// If the cell is empty, fill with 00
+				if (this.content[k][m] == "")
+				{ 
+					this.content[k][m] = "00";
+				}
+
+				finalopcode = finalopcode + " " + this.content[k][m];
+			}
+		}
+	}
 
 
 }
@@ -103,9 +112,6 @@ function StaticDataTable () {
 	// An array to hold the entries of the Static Data table
 	this.entries = [];
 
-	// Holds the index of last entry to be added
-	this.currLoc = -1;
-
 	// Adds a new entry to the table
 	this.newEntry = function (temp, varname, scope) {
 
@@ -113,27 +119,14 @@ function StaticDataTable () {
 		var entry = { 	temp: temp,			// name of temp variable
 						variable: varname,	// name of variable stored
 						scope: scope,		// scope of variable
-						offset: 0		// offset of variable
+						offset: 0			// offset of variable (set to 0 until known)
 					};
-
-		// increment currLoc appropriately
-		currLoc++;
-
-		// Offset of each entry is offset of the previous entry + size of current entry
-		// Integers are of size 1, so simply increment previous offset
-		if (entries.length > 0) {
-			var prevOffset = this.entries[this.currLoc--].offset;
-			entry.offset = prevOffset + 1;
-		}
-		else {
-			// A previous entry does not exist, let offset remain 0
-		}
 
 		// Adds new entry to entries array
 		this.entries.push(entry);
 	};
 
-	// Returns a Temp value of an entry from the table, given its var name and scope
+	// Returns an entry from the table, given its variable name and scope
 	this.getEntry = function (varname, scope) {
 
 		// Finds the index of the entry to remove in the entries array
@@ -143,30 +136,10 @@ function StaticDataTable () {
 
 			if (tempentry.variable == varname && tempentry.scope == scope) {
 
-				return tempentry.temp;
+				return tempentry;
 			}
 
 		}
-	};
-
-	// Removes an entry from table, given its temp value
-	this.removeEntry = function (tempname) {
-
-		var spliceindex;
-
-		// Finds the index of the entry to remove in the entries array
-		for (var i = 0; i < entries.length ; i++) {
-
-			var tempentry = entries[i];
-
-			if (tempentry.temp == tempname) {
-				spliceindex = i;
-			}
-
-		}
-
-		// Removes object at index spliceindex
-		this.entries.splice(spliceindex, 1);
 	};
 
 }
@@ -228,7 +201,7 @@ function JumpsTable () {
 	this.newEntry = function (temp, dist) {
 
 		// Constructs entry object
-		var entry = { 	temp: temp,			// name of temp variable
+		var entry = { 	temp: temp,			// name of temp location
 						dist: dist			// distance of jump
 					};
 
@@ -251,26 +224,11 @@ function JumpsTable () {
 
 		}
 	};
+}
 
-	// Removes an entry from table, given its temp value
-	this.removeEntry = function (tempname) {
-
-		var spliceindex;
-
-		// Finds the index of the entry to remove in the entries array
-		for (var i = 0; i < entries.length ; i++) {
-
-			var tempentry = entries[i];
-
-			if (tempentry.temp == tempname) {
-				spliceindex = i;
-			}
-
-		}
-
-		// Removes object at index spliceindex
-		this.entries.splice(spliceindex, 1);
-	};
+// Used to test if a value is a number (ints are stored as strings here)
+function isNumber(n) {
+	return !isNaN(parseFloat(n)) && isFinite(n);
 }
 
 // Generates code based on the AST
@@ -291,6 +249,7 @@ function codeGen(ast) {
 	// Tracks current temp variable number
 	// Begins at 0
 	var tempAcc = 0;
+	var jumpAcc = 0;
 
 	// Used to test if a value is a number (ints are stored as strings here)
 	function isNumber(n) {
@@ -374,7 +333,7 @@ function codeGen(ast) {
 
 						// Add entry to heap data
 						// Offset is 0 because it is unknown what the string is yet
-						heapData.addEntry(temploc.concat("XX"), id, scopelevel, 0);
+						heapData.addEntry(temploc.concat("XX"), id, symbolTable.curr.scope, 0);
 
 					}
 					// If id is of type boolean
@@ -586,23 +545,47 @@ function codeGen(ast) {
 						execEnv.addEntry("FF");		// System call
 
 					}
-
 					// If the item in the print statement is just a string
-					if (id.length > 1 && node.children[0].children.length == 0) {
+					else if (id.length > 1 && node.children[0].children.length == 0) {
+
+						// Construct Temp location
+						var temploc = "T".concat(tempAcc.toString()); // temploc = "T#"
+
+						// Increment tempAcc
+						tempAcc++;
+
+						// Add entry to heap data to represent string (no var identifier for lack of var)
+						heapData.addEntry(temploc.concat("XX"), "", scopelevel, -(id.length + 1));
 						
-						// THINGS
+						// Add string to execution environment
+						execEnv.addTailEntry("00");	// Signify end of string
+
+						// Iterate through string in reverse and add each char to environment
+						for (var i = id.length - 1; i = 0; i--) {
+
+							// Get hex representation of char i
+							var hexchar = id.charCodeAt(i).toString(16).toUpperCase();
+
+							// Add to environment
+							execEnv.addTailEntry(hexchar);
+						}
+
+						execEnv.addEntry("A2");	// Load X reg with constant
+						execEnv.addEntry("02");	// Const 2 -> print 00 terminated string at address in y reg
+						execEnv.addEntry("A0"); // Load Y reg from memory
+						execEnv.addEntry(temploc); // Temploc of string
+						execEnv.addEntry("XX");
+						execEnv.addEntry("FF");		// System call
 
 					}
-
 					// If the item in the print statement is an empty string
-					if (id.length == 0 && node.children[0].children.length == 0) {
+					else if (id.length == 0 && node.children[0].children.length == 0) {
 						
 						// DO NOTHING, PRINT NOTHING
 
 					}
-
 					// If the item in the print statement is an id
-					if (id.length == 1 && node.children[0].children.length == 0) {
+					else if (id.length == 1 && node.children[0].children.length == 0) {
 
 						execEnv.addEntry("AC");	// Load Y register with contents of id
 						execEnv.addEntry(temploc.substring(0,1));	// At location
@@ -611,10 +594,8 @@ function codeGen(ast) {
 						execEnv.addEntry("01"); // Constant = 1
 						execEnv.addEntry("FF");	// System call
 					}
-
-					// If the id being printed is an IntExpr
-					// Evaluate IntExpr, then print
-					if (id == "+" || id == "-") {
+					// If the id being printed is an IntExpr, evaluate IntExpr, then print
+					else if (id == "+" || id == "-") {
 
 						// Starting node is the current id node
 						var startnode = node.children[0];
@@ -663,7 +644,7 @@ function codeGen(ast) {
 							}
 							
 							// Update execution environment
-							
+
 							execEnv.addEntry("A9");		// Load the accumulator with a constant
 							execEnv.addEntry(acc);		// Load acc to accumulator
 
@@ -693,11 +674,34 @@ function codeGen(ast) {
 							execEnv.addEntry("FF");		// System call
 
 
+					}
 				}
-				// If an IF or WHILE statement
-				else if (node.name == "while" || node.name == "if") {
+				// If a WHILE statement
+				else if (node.name == "while") {
 
 					// THINGS
+
+				}
+				// If an IF statement
+				else if (node.name == "if") {
+
+					// Temp loc for jump
+					var jumploc = "J".concat(jumpAcc.toString());
+
+					// Add temp to Jumps Table
+					jumpsTable.addEntry(jumploc, "?");
+
+					// Increment jumps accumulator
+					jumpAcc++;
+
+					var boolstmt = node.children[0]; x
+
+					// If statement of type if (expr == expr)
+					if (boolstmt.name == "equal?") {
+
+						var lhs = boolstmt.children[0].name;
+						var rhs = boolstmt.children[1].name;
+					}
 
 				}
 				// If an equal? statement
@@ -829,6 +833,12 @@ function codeGen(ast) {
 	// Initial call to astTraverse from the root
 	// Creates the symbol table and type checks as it goes
 	astTraverse(ast.root, 0);
+
+	// At the end of the traversal, add a break to the end of the op code
+	execEnv.addEntry("00");
+
+	// Return the final code string
+	finalopcode = execEnv.toString();
 
 }
 

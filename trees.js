@@ -147,7 +147,7 @@ function makeAST(cst) {
 			{
 				var name = currnode.name;
 
-				console.log("ChildC: " + childCounter + "\tEqualC: " + equalChildren + "\tNode: " + name);
+				//console.log("ChildC: " + childCounter + "\tEqualC: " + equalChildren + "\tNode: " + name);
 
 				// If a { is found, a block begins
 				if (name == "{") {
@@ -221,7 +221,7 @@ function makeAST(cst) {
 			else
 			{
 					var nodename = currnode.name;
-					console.log("ChildC: " + childCounter + "\tEqualC: " + equalChildren + "\tNode: " + nodename);
+					//console.log("ChildC: " + childCounter + "\tEqualC: " + equalChildren + "\tNode: " + nodename);
 
 
 					// If all children for current working branch have been found,

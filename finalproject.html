@@ -123,7 +123,8 @@ op            ::== + | -
 <script type="text/javascript" src="trees.js"></script>
 <script type="text/javascript" src="parsetree.js"></script>
 <script type="text/javascript" src="symboltable.js"></script>
-<script type="text/javascript" src="codegen.js"></script>
+<script type="text/javascript" src="codegenutils.js"></script>
+<script type="text/javascript" src="codegeneration.js"></script>
 <script type="text/javascript">
 
 // Global variables
@@ -140,9 +141,15 @@ var syntaxTree = "";    // CST
 var ast = "";            // AST
 var tokensForTree = ""; // Will hold a copy of tokens array for tree creation
 var treeGen;
+// Creates the environment for code generation
+var execEnv;
+var staticData;
+var heapData;
+var jumpsTable;
+var finalopcode = "";   // Final assembly language code
 
-function init()
-    {
+function init() {
+
         // Clear the message box
         document.getElementById("output").value = "";
 		
@@ -157,6 +164,10 @@ function init()
         tokensForTree = new Array();
         treeGen = false;    // Tracks if we're generating a syntax tree
         symbolTable = new SymbolTable();
+        execEnv = new ExecEnv(); 
+        staticData = new StaticDataTable();
+        heapData = new HeapDataTable();
+        jumpsTable = new JumpsTable();
     }
 	
 // Token class
@@ -245,7 +256,12 @@ function btnCompile_click()
                 var STstr = symbolTable.toString();
                 putMessage(STstr);
                 putMessage("AND THERE'S YOUR SYMBOL TABLE, SO THERE.");
-                putMessage("IT'S EVEN TYPE CHECKED AND EVERYTHING OH JOY.");
+                putMessage("IT'S EVEN TYPE CHECKED AND EVERYTHING OH JOY.\n");
+
+                // Generate code
+                //putMessage("WOW YOU MADE IT TO CODE GEN, GO YOU.");
+                // Print out code
+                //putMessage(finalopcode);
             }
             else
             {
@@ -287,17 +303,6 @@ function getNextToken()
             }
             tokenIndex++;
         }
-		
-		
-		// UPDATES SYMBOL TABLE WITH THE NEXT TOKEN
-		/*
-		// If symbol is not yet in table, add
-        // Tokens such as (, ), {, } are ignored
-		if (!symbolTable[thisToken.token] && (thisToken.kind != "other") && (thisToken.kind != "EOF"))
-		{
-			symbolTable[thisToken.token] = [thisToken.kind, scope, thisToken.line, thisToken.index];
-		}
-        */
 		
         return thisToken;
 

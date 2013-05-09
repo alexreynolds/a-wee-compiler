@@ -574,7 +574,7 @@ function buildSymbolTable(ast) {
 
 						// Starting node is the current id node
 						var startnode = node.children[0];
-						console.log("START: " + startnode.name);
+						//console.log("START: " + startnode.name);
 
 						// Iterate through RHS to find final id/ensure it is sound
 						while (startnode.name == "+" || startnode.name == "-") {
