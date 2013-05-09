@@ -1,4 +1,15 @@
-// TREES
+/*
+
+Alex Reynolds
+CMPU-331
+Final Project
+
+trees.js
+
+	- Contains Tree object representation (used to build CST)
+	- Generates an abstract syntax tree (AST)
+	  given the concrete syntax tree (CST)
+*/
 
 // A Javascript tree object representation
 function Tree() {
@@ -119,6 +130,12 @@ function makeAST(cst) {
 	var childCounter = -1;
 	// Tracks if processing an operation
 	var inOP = false;
+	// Tracks if processing an equal?
+	var inEqual = false;
+	// Tracks if processing if or while statement
+	var ifWhile = false;
+	// Tracks how many children have been found for the current equal?
+	var equalChildren = -1;
 	// Tracks how many levels of op nesting there are
 	var oplevels = 0;
 
@@ -130,14 +147,21 @@ function makeAST(cst) {
 			{
 				var name = currnode.name;
 
+				console.log("ChildC: " + childCounter + "\tEqualC: " + equalChildren + "\tNode: " + name);
+
 				// If a { is found, a block begins
 				if (name == "{") {
 					ast.addNode("block", "branch");
 				}
 				// If a } is found, a block has ended
-				else if (name =="}") {
+				else if (name == "}") {
 					ast.endChildren();
-					//childCounter = 0;
+					
+					// If the end of an if or while block, step up tree again
+					if (ifWhile) {
+						ast.endChildren();
+						ifWhile = false;
+					}
 				}
 
 				// If the leaf is significant for the AST, record it
@@ -156,18 +180,37 @@ function makeAST(cst) {
 						// If childCounter = 0, appropriate number of children
 						// have been found for parent node. Step up a scope in tree.
 
+						// If processing children of equal? node, decrement equal?
+						// child counter
+						if (inEqual) { equalChildren--; }
+
+						// If the two children of equal? node have been found
+						// after IntExprs step up another level
+						if (equalChildren == 0 && inOP) {
+
+							console.log("equal children = 0");
+							ast.endChildren();
+
+							if (!ifWhile && oplevels == 1) { ast.endChildren(); }
+
+							// Sets counter to -1
+							equalChildren--;
+						}
+
 						// If childCounter = 0 while in an op, step up another level
 						if (inOP) {
-
-							for (var a = 0; a < oplevels; a++) {
+							console.log("oplevels: " + oplevels);
+							for (var a = 1; a < oplevels; a++) {
 								ast.endChildren();
 							}
-
-								oplevels = 0;
-								inOP = false;
+							console.log("inOP over");
+							oplevels = 0;
+							inOP = false;
 						}
 
 						ast.endChildren();
+
+						// Reset child counter
 						childCounter = -1;
 					}
 				}
@@ -178,6 +221,7 @@ function makeAST(cst) {
 			else
 			{
 					var nodename = currnode.name;
+					console.log("ChildC: " + childCounter + "\tEqualC: " + equalChildren + "\tNode: " + nodename);
 
 
 					// If all children for current working branch have been found,
@@ -223,31 +267,33 @@ function makeAST(cst) {
 							childCounter = 2;
 						}
 					}
-					/*
-					else if (nodename == "+")	// + op
+					else if (nodename == "while")	// While Expr
 					{
-						ast.addNode("+", "branch");
+						ast.addNode("while", "branch");
 						// has 2 children
 						childCounter = 2;
+						ifWhile = true;
 					}
-					else if (nodename == "-") 	// - op
+					else if (nodename == "if")	// If Expr
 					{
-						ast.addNode("-", "branch");
+						ast.addNode("if", "branch");
 						// has 2 children
 						childCounter = 2;
+						ifWhile = true;
 					}
-					*/
-					/*
-					else if (nodename == "Statement")	// Statement w/ 3 children = { StmtList }
+					else if (nodename == "equal?")
 					{
-						// Only add block node if Statement List is not empty
-						if (currnode.children.length == 3)
-						{
-							ast.addNode("block", "branch");
-							// ??? children
-						}
+						ast.addNode("equal?", "branch");
+						// has 2 children
+						childCounter = 2;
+						equalChildren = 2;
+						inEqual = true;
 					}
-					*/
+					else if (nodename == "Expr")
+					{
+						// has 1 child
+						childCounter = 1;
+					}
 
 				}
 

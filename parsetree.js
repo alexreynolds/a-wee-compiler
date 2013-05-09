@@ -1,7 +1,14 @@
-// parsetree.js
+/*
 
-// Used to parse a second time around and create an AST with the tokens
+Alex Reynolds
+CMPU-331
+Final Project
 
+parsetree.js
+
+	- Run only if the first parse was entirely successful
+	- Parses again and constructs a concrete syntax tree (CST) as it goes
+*/
     
 function parseTree()
     {	
@@ -118,8 +125,18 @@ function parseStatementT()
 			// Adds { leaf to Statement node
 			syntaxTree.addNode("{", "leaf");
 
-			// Parse Statement List
-			parseStatListT();
+			// Check next token to see if it's a }
+			nextToken = checkNextToken();
+
+			// Addresses empty brackets {}
+			if (nextToken.token == "}") {
+				currentToken = getNextToken();
+				syntaxTree.addNode("}", "leaf");
+			}
+			else {
+				// Parse Statement List
+				parseStatListT();
+			}
 
 			// Ends Statement branch of tree, back to ??
 			syntaxTree.endChildren();
@@ -145,7 +162,7 @@ function parseStatementT()
 			syntaxTree.endChildren();
 
 			// Ends Statement branch of tree, back to ??
-			syntaxTree.endChildren();
+			//syntaxTree.endChildren();
 
 		}
 		// STATEMENT - IF STATEMENT
@@ -161,7 +178,7 @@ function parseStatementT()
 			syntaxTree.endChildren();
 
 			// Ends Statement branch of tree, back to ??
-			syntaxTree.endChildren();
+			//syntaxTree.endChildren();
 
 		}
 		else
@@ -184,7 +201,7 @@ function parseWhileT()
 	// Current token entering is "while"
 	
 	// Parse the BooleanExpr
-	parseBooleanExprT();
+	parseBooleanExprT("unknown");
 
 	// Get the next {
 	currentToken = getNextToken();
@@ -203,7 +220,7 @@ function parseIfT()
 	// Current token entering is "if"
 	
 	// Parse the BooleanExpr
-	parseBooleanExprT();
+	parseBooleanExprT("unknown");
 
 	// Get the next {
 	currentToken = getNextToken();
@@ -270,9 +287,9 @@ function parsePrintT()
 // STATEMENTLIST parse
 function parseStatListT()
 {
-	// Add Statement List node to syntax tree
-	syntaxTree.addNode("Statement List", "branch");
 
+	// Add Statement List node to syntax tree
+	//syntaxTree.addNode("Statement List", "branch");
 
 	nextToken = checkNextToken();
 	
@@ -281,7 +298,7 @@ function parseStatListT()
 	if (nextToken.token=="}")
 	{	
 		// Adds empty leaf to Statement List node
-		syntaxTree.addNode("empty", "leaf");
+		//syntaxTree.addNode("empty", "leaf");
 
 		currentToken = getNextToken();
 
@@ -303,7 +320,7 @@ function parseStatListT()
 
 		// Ends StatementList branch of tree, back to Statement/next level of StmtList
 		syntaxTree.endChildren();
-		syntaxTree.endChildren();
+		//syntaxTree.endChildren();
 		//syntaxTree.endChildren();
 
 		// Adds } leaf to Statement node
@@ -320,6 +337,10 @@ function parseStatListT()
 	else if (nextToken.token != EOF)
 	{
 		// StatementList --> Statement StatementList
+
+
+		// Add Statement List node to syntax tree
+		syntaxTree.addNode("Statement List", "branch");
 
 		parseStatementT();
 
@@ -375,9 +396,12 @@ function parseExprT()
 	// EXPR - BOOL
 	else if (currentToken.kind == "boolean" || currentToken.token == "(")
 	{
-		parseBooleanExprT();
+		// Alerts the BooleanExprT function what kind of Boolean statement it is
+		if (currentToken.kind == "boolean") { parseBooleanExprT("boolval"); }
+		else { parseBooleanExprT("equal"); }
 
-		// Ends
+		// Ends Expr branch of tree, back to ???
+		syntaxTree.endChildren();
 	}
 	else
 	{
@@ -404,11 +428,8 @@ function parseIntExprT()
 	{
 		// Stores the value of the digit going into intexpr
 		var tempdigit = currentToken.token;
-	
-	// NOTE TO SELF
-		// CHANGED FROM HAVING THE OP AS THE BRANCH WITH DIGITS AS LEAVES TO 
-		// HAVING DIGIT AND OP AS LEAVES AN THEN MORE AS BRANCH
-		// Adds digit leaf to op node
+
+		// Adds digit leaf to IntExpr node
 		syntaxTree.addNode(tempdigit, "leaf");
 
 		// Gets the op token
@@ -419,15 +440,13 @@ function parseIntExprT()
 
 		parseExprT();	
 
-		// End branch of tree, go back to something hopefully right....
-		//syntaxTree.endChildren();
+		// End IntExpr branch of tree, back to Expr
+		syntaxTree.endChildren();
+
 	}
 	// Otherwise, do nothing, IntExpr consisted of only one digit
 	else
 	{
-		//putMessage("THUS THE INTEXPR ENDS");
-		// return;
-
 		// Adds known digit leaf to intexpr node
 		syntaxTree.addNode(currentToken.token, "leaf");
 
@@ -442,8 +461,6 @@ function parseIntExprT()
 // STRING EXPRESSION parse
 function parseStringExprT()
 {
-	//putMessage("FOUND A CHAREXPR HEYO");
-
 	// Add String Expression node to syntax tree
 	syntaxTree.addNode("StringExpr", "branch");
 
@@ -459,15 +476,16 @@ function parseStringExprT()
 }
 
 // BOOLEAN EXPRESSION parse
-function parseBooleanExprT()
+function parseBooleanExprT(type)
 {
-	// Add Boolean Expression node to syntax tree
-	syntaxTree.addNode("BooleanExpr", "branch");
-
 	// If BooleanExpr is of type (Expr == Expr)
-	if (currentToken.token == "(")
+	if (type == "equal")
 	{
-		syntaxTree.addNode("equals?", "branch");
+		// Add Boolean Expression node to syntax tree
+		syntaxTree.addNode("BooleanExpr", "branch");
+
+		// Add equal? branch to syntax tree
+		syntaxTree.addNode("equal?", "branch");
 
 		// Parse LHS Expr
 		parseExprT();
@@ -489,14 +507,26 @@ function parseBooleanExprT()
 
 	}
 	// If BooleanExpr is of type boolVal
-	else if (currentToken.kind == "boolean")
+	else if (type == "boolval")
 	{
+		// Add Boolean Expression node to syntax tree
+		syntaxTree.addNode("BooleanExpr", "branch");
+
 		// Add boolean leaf to boolean expr branch
 		syntaxTree.addNode(currentToken.token, "leaf");
 
 		// End boolean expr branch of tree, back to ??
 		syntaxTree.endChildren();
 
+	}
+	// If type is yet unknown
+	else if (type == "unknown")
+	{
+		currentToken = getNextToken();
+
+		// Call function again when type is known
+		if (currentToken.kind == "boolean") { parseBooleanExprT("boolval"); }
+		else { parseBooleanExprT("equal"); }
 	}
 
 }
@@ -524,8 +554,8 @@ function parseCharListT(str)
 	else if (nextToken.token =="\"")
 	{
 		currentToken = getNextToken();
-		// Do nothing, CharList is empty
-		//putMessage("THUS THE CHAREXPR ENDS");
+
+		// CharList is empty
 
 		// Adds charlist string leaf to Char List node
 		syntaxTree.addNode(chliststrT, "leaf");
@@ -533,7 +563,10 @@ function parseCharListT(str)
 		// End Char List branch of tree, return to String Expr node
 		syntaxTree.endChildren();
 
-		return;
+		// End String Expr node, return to Expr node
+		syntaxTree.endChildren();
+
+		//return;
 	}
 	else if (nextToken.kind == "digit")
 	{

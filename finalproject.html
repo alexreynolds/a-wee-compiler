@@ -1,4 +1,13 @@
 <!DOCTYPE HTML>
+<!--
+
+Alex Reynolds
+CMPU-331
+Final Project
+Spring 2013
+
+-->
+
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
@@ -42,9 +51,9 @@ h1
 	
 <div class="content">
 
-<h2 align="center">Alex Reynolds - Compilers Project 2</h2>
+<h2 align="center">Alex Reynolds - Compilers Final Project</h2>
 <h1 align="center">A VERY ANNOYED COMPILER</h1>
-<p align="center">Giving a voice to angry computers since 2013.</p><br>
+<p align="center">Giving a voice to frustrated computers since 2013.</p><br>
         
 <table align="center">
 <tr>
@@ -114,6 +123,7 @@ op            ::== + | -
 <script type="text/javascript" src="trees.js"></script>
 <script type="text/javascript" src="parsetree.js"></script>
 <script type="text/javascript" src="symboltable.js"></script>
+<script type="text/javascript" src="codegen.js"></script>
 <script type="text/javascript">
 
 // Global variables
@@ -228,12 +238,18 @@ function btnCompile_click()
             buildSymbolTable(ast);
 
             // If there are no errors return symbol table
-            if (errorCount == 0) {
+            if (errorCount == 0)
+            {
                 // Print out the symbol table
+                putMessage("\n");
                 var STstr = symbolTable.toString();
                 putMessage(STstr);
                 putMessage("AND THERE'S YOUR SYMBOL TABLE, SO THERE.");
                 putMessage("IT'S EVEN TYPE CHECKED AND EVERYTHING OH JOY.");
+            }
+            else
+            {
+                putMessage("FIX YOUR DAMNED ERRORS AND THEN I'LL THINK ABOUT GIVING YOU THE SYMBOL TABLE.");
             }
 
 

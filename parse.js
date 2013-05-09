@@ -1,4 +1,14 @@
-// parse.js
+/*
+
+Alex Reynolds
+CMPU-331
+Final Project
+
+parse.js
+
+	- Parses the tokens generated during lexical analysis
+	- Checks to ensure the the input adheres to the given grammar
+*/
 
     
 function parse()

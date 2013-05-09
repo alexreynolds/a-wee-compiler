@@ -1,4 +1,14 @@
-// lexer.js
+/*
+
+Alex Reynolds
+CMPU-331
+Final Project
+
+lexer.js
+
+	- Lexical analysis of source code input
+	- Generates a list of tokens to be parsed
+*/
 
 var sourceCode;
 

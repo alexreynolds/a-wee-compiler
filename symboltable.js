@@ -1,4 +1,15 @@
-// 
+/*
+
+Alex Reynolds
+CMPU-331
+Final Project
+
+symboltable.js
+
+	- Contains Symbol object representation
+	- Contains SymbolTable object representation
+	- Builds the symbol table given the AST
+*/
 
 // SYMBOL OBJECT FOR INSERTING INTO TREE
 function Symbol(id, type, index, scope) {
@@ -29,6 +40,9 @@ function SymbolTable() {
 	// The current node of tree being built
 	this.curr = {};
 
+	// Accumulator to number scopes
+	var scopeAcc = 0;
+
 	// Add a scope node
 	this.addScope = function() {
 
@@ -36,7 +50,8 @@ function SymbolTable() {
 		var node = { 	//name: name,		// name of scope node
 						children: [],	// array of children
 						parent: {},		// parent of node
-						ids: []			// Array of ids contained in scope
+						ids: [],			// Array of ids contained in scope
+						scope: 0		// Number of scope (relatively arbitrary)
 					};
 
 		// Checks to see if this node should be tree root
@@ -53,13 +68,16 @@ function SymbolTable() {
 			// Make current node the parent of new node
 			node.parent = this.curr;
 
+			node.scope = scopeAcc;
+
 			// Add new node to children array of current node
 			this.curr.children.push(node);
 		}
 
 		// Sets current scope to new node
 			this.curr = node;
-
+		// Increment scopeAcc
+			scopeAcc++;
 
 	};
 
@@ -165,7 +183,7 @@ function SymbolTable() {
 // 	Type checks the statements as it constructs
 function buildSymbolTable(ast) {
 
-	var childCounter = -1;	// Tracks the number of children to be considered
+	//var childCounter = -1;	// Tracks the number of children to be considered
 
 	// Used to test if a value is a number (ints are stored as strings here)
 	function isNumber(n) {
@@ -195,18 +213,15 @@ function buildSymbolTable(ast) {
 			{
 				// If a new block of code, make a new level of scope in symbol table
 				if (node.name == "block"){
-					//console.log("depth: " + depth);
+
 					symbolTable.addScope();
-					// Starts the counter so we know when to move back up a scope
-					//	( for parallel scopes )
-					childCounter = node.children.length;	
-					//console.log("ADDED A SCOPE, childCounter: " + childCounter);
+
 				}
 				// If an id declaration, make a new symbol table entry at current scope
 				else if (node.name == "declare") {
 
 					// Decrement child counter - one child has been considered
-					childCounter--;
+					//childCounter--;
 
 					var id = node.children[1].name;
 					var type = node.children[0].name;
@@ -219,7 +234,8 @@ function buildSymbolTable(ast) {
 
 						if (currid == id) {
 							// id has already been declared in current scope
-							putMessage("WARNING: EINSTEIN YOU CAN'T REDECLARE VARIABLES IN THE SAME SCOPE, DUH.");
+							putMessage("ERROR EINSTEIN YOU CAN'T REDECLARE VARIABLES IN THE SAME SCOPE, DUH.");
+							errorCount++;
 							declared = true;
 						}
 					}
@@ -236,7 +252,7 @@ function buildSymbolTable(ast) {
 				else if (node.name == "assign") {
 
 					// Decrement child counter - one child has been considered
-					childCounter--;
+					//childCounter--;
 
 					var id = node.children[0].name;	// id to assign value to
 					var val = node.children[1].name;	// val to assign to id
@@ -266,7 +282,7 @@ function buildSymbolTable(ast) {
 					}
 
 					// If the RHS of assignment is an id, check to ensure it's been declared
-					if (val.length == 1 && !isNumber(val) && !(val == "+" || val == "-")) {
+					/*if (val.length == 1 && !isNumber(val) && !(val == "+" || val == "-")) {
 						tempscope = symbolTable.curr;
 
 						// Runs up symbol table tree to check if id has been declared in
@@ -293,6 +309,7 @@ function buildSymbolTable(ast) {
 							tempscope = tempscope.parent;
 						}
 					}
+					*/
 
 					// If the id has been declared
 					if (declared)
@@ -362,7 +379,6 @@ function buildSymbolTable(ast) {
 								// If the id has not yet been declared, error
 								if (!declared2) {
 									putMessage("ERROR YOU ARE TRYING TO OPERATE ON " + currid.id + " BUT IT DOESN'T EXIST YET YOU NINNY.");
-									console.log("A FAILS AT DEPTH " + depth);
 									errorCount++;
 								}
 
@@ -383,6 +399,32 @@ function buildSymbolTable(ast) {
 						}
 						// If assignment is of type id = id
 						else if (val.length == 1 && !isNumber(val) && !(val == "+" || val == "-")) {
+
+							tempscope = symbolTable.curr;
+
+							// Runs up symbol table tree to check if id has been declared in
+							// current scope as well as parent scopes
+							while (tempscope.parent !== undefined && !declared2) {
+
+								// Check this scope to see if id has already been declared & initialized
+								for (var i = 0; i < tempscope.ids.length; i++)
+								{
+									var currid = tempscope.ids[i];
+
+									if (currid.getID() == val) {
+										declared2 = true;
+										
+										// If the id has not yet been initialized, issue a warning
+										if (currid.initialized == false) {
+											putMessage("WARNING YOU ARE TRYING TO OPERATE ON " + currid.id + " BUT IT HAS NOT BEEN INITIALIZED.");
+										}
+
+										decid2 = tempscope.ids[i];
+									}
+								}
+
+								tempscope = tempscope.parent;
+							}
 
 							// If the id types match, success
 							if (decid.getType() == decid2.getType()) {
@@ -407,6 +449,46 @@ function buildSymbolTable(ast) {
 							}
 
 						}
+						// If assignment is of type id = equal? (boolean)
+						else if (val == "equal?") {
+
+
+
+
+							///** TEST FOR EQUAL VARIABLES HERE
+
+
+
+
+
+							if (decid.getType() == "boolean") {
+
+								// Note that the id has been initialized
+								decid.initialized = true;
+							}
+							// Else error type mismatch
+							else {
+								putMessage("ERROR MAYDAY MAYDAY TYPE MISMATCH HERE.");
+								putMessage("NO YOU CANNOT MATCH A " + decid.getType() + " TO A BOOLEAN ARE YOU MENTALLY ILL?");
+								errorCount++;
+							}
+						}
+						// If assignment is of type id = boolval (boolean)
+						else if (val == "true" || val == "false") {
+
+							// If decid is of type boolean, success
+							if (decid.getType() == "boolean") {
+
+								// Note that the id has been initialized
+								decid.initialized = true;
+							}
+							// Else error type mismatch
+							else {
+								putMessage("ERROR MAYDAY MAYDAY TYPE MISMATCH HERE.");
+								putMessage("NO YOU CANNOT MATCH A " + decid.getType() + " TO A BOOLEAN ARE YOU MENTALLY ILL?");
+								errorCount++;
+							}
+						}
 						// If assignment is of type id = int
 						else if (isNumber(val)) {
 
@@ -420,7 +502,7 @@ function buildSymbolTable(ast) {
 							// Else error, type mismatch
 							else {
 								putMessage("ERROR YOU HAVE A TYPE MISMATCH UP IN THIS JOINT.");
-								putMessage("YOU'RE TRYING TO MATCH A STRING TO AN INT WHICH IS OBVIOUSLY WRONG.");
+								putMessage("YOU'RE TRYING TO MATCH A " + decid.getType() + " TO AN INT WHICH IS OBVIOUSLY WRONG.");
 								putMessage("IS IT THAT HARD TO INITIALIZE STRINGS TO STRINGS AND INTS TO INTS? JESUS.");
 
 								errorCount++;
@@ -565,106 +647,211 @@ function buildSymbolTable(ast) {
 					}
 
 				}
+				// If an IF or WHILE statement
+				else if (node.name == "while" || node.name == "if") {
+
+					// Do nothing, nothing to add to ST or type check
+
+				}
+				// If an equal? statement
+				else if (node.name == "equal?") {
+
+					// Equal? does not have to be type checked
+					//	Must only check to ensure variables within expressions are declared/initialized
+
+					var LHC = node.children[0].name;	// LHC of equal? node
+					var RHC = node.children[1].name;	// RHC of equal? node
+					//console.log("LHC: " + LHC + "\tRHC: " + RHC);
+					var testLHC = false;	// indicates if theres an if to be checked in the LHC
+					var testRHC = false;	// indicates if theres an if to be checked in the RHC
+					var declaredL = false;		// indicates if the id has been declared already
+					var declaredR = false;		// indicates if second id (if it exists) has been declared already
+					//var decidL = {}	// Will hold id entry in table for type checking if it has been declared
+					//var decidR = {}	// Will hold second id entry (if it exists) in table for type checking if it has been declared
+					
+					var tempscope = symbolTable.curr;
+
+					// If left child is an IntExpr that needs to be checked for ids
+					if (LHC == "+" || LHC == "-")
+					{
+						// Starting node is the current id node
+						var startnode = node.children[1];
+
+						// Iterate through RHS to find final id (if it exists)/ensure Expr is sound
+						while (startnode.name == "+" || startnode.name == "-") {
+
+							// Get right hand child node
+							var rhsname = startnode.children[1].name;
+
+							// If RHC is an id, set it to LHC to be checked
+							if (!isNumber(rhsname) && rhsname.length == 1 && !(rhsname == "+" || rhsname == "-")) {
+								LHC = rhsname;
+								testLHC = true;
+								//console.log("MUST CHECK LHC: " + LHC);
+
+							}
+							// If RHC is a string, error
+							else if (!isNumber(rhsname) && rhsname.length > 1) {
+
+								putMessage("ERROR YOU CANNOT SLIP STRINGS INTO YOUR INT EXPRESSIONS.");
+								errorCount++;
+
+							}
+
+							// Next node to check is the RHC of curr node (because LHS must be a digit by grammar)
+							startnode = startnode.children[1];
+						}
+
+						console.log("LHC: " + LHC);
+					}
+
+					// If right child is an IntExpr that needs to be checked for ids
+					if (RHC == "+" || RHC == "-")
+					{
+						// Starting node is the current id node
+						var startnode = node.children[1];
+
+						// Iterate through RHS to find final id (if it exists)/ensure Expr is sound
+						while (startnode.name == "+" || startnode.name == "-") {
+
+							// Get right hand child node
+							var rhsname = startnode.children[1].name;
+
+							// If RHC is an id, set it to LHC to be checked
+							if (!isNumber(rhsname) && rhsname.length == 1 && !(rhsname == "+" || rhsname == "-")) {
+								RHC = rhsname;
+								testRHC = true;
+								//console.log("MUST CHECK RHC: " + RHC);
+
+							}
+							// If RHC is a string, error
+							else if (!isNumber(rhsname) && rhsname.length > 1) {
+
+								putMessage("ERROR YOU CANNOT SLIP NON-INTS INTO YOUR INT EXPRESSIONS.");
+								errorCount++;
+
+							}
+
+							// Next node to check is the RHC of curr node (because LHS must be a digit by grammar)
+							startnode = startnode.children[1];
+						}
+
+						console.log("RHC: " + RHC);
+					}
+
+					// If left child is an id
+					if (LHC.length == 1 && !isNumber(LHC) && !(LHC == "+" || LHC == "-"))
+					{
+						// Note that LHC is an id and must be checked
+						testLHC = true;
+					}
+					// If right child is an id
+					if (RHC.length == 1 && !isNumber(RHC) && !(RHC == "+" || RHC == "-"))
+					{
+						// Note that RHC is an id and must be checked
+						testRHC = true;
+					}
+
+					// If left child is a StringExpr or boolVal
+					if (LHC.length > 1 || LHC == "true" || LHC == "false")
+					{
+
+						// Do nothing, no ids to check
+
+					}
+					// If right child is a StringExpr or boolVal
+					if (RHC.length > 1 || RHC == "true" || RHC == "false") {
+
+						// Do nothing, no ids to check
+						
+					}
+					// If left child is an equal? BooleanExpr
+					// If right child is an equal? BooleanExpr
+					
+
+					// If necessary, runs up symbol table tree to check if id in LHC has been declared in
+					// 	current scope or parent scopes
+					while (testLHC && tempscope.parent !== undefined && !declaredL) {
+
+						// Check this scope to see if id has already been declared
+						for (var i = 0; i < tempscope.ids.length; i++)
+						{
+							var currid = tempscope.ids[i].getID();
+
+							if (currid == LHC) {
+								declaredL = true;
+
+								// If the id has not yet been initialized, issue a warning
+								if (currid.initialized == false) {
+										putMessage("WARNING YOU ARE TRYING TO TEST " + currid.id + " BUT IT HAS NOT BEEN INITIALIZED.");
+								}
+
+								//decidL = tempscope.ids[i];
+							}
+						}
+
+						tempscope = tempscope.parent;
+					}
+
+					// If the RHC of assignment contains an id, check to ensure it's been declared
+					tempscope = symbolTable.curr;
+
+					// If necessary, runs up symbol table tree to check if id in RHC has been declared in
+					// 	current scope or parent scopes
+					while (testRHC && tempscope.parent !== undefined && !declaredR) {
+
+						// Check this scope to see if id has already been declared & initialized
+						for (var i = 0; i < tempscope.ids.length; i++)
+						{
+							var currid = tempscope.ids[i];
+
+							if (currid.getID() == RHC) {
+								declaredR = true;
+								
+								// If the id has not yet been initialized, issue a warning
+								if (currid.initialized == false) {
+									putMessage("WARNING YOU ARE TRYING TO TEST " + currid.id + " BUT IT HAS NOT BEEN INITIALIZED.");
+								}
+
+								//decidR = tempscope.ids[i];
+							}
+						}
+
+						tempscope = tempscope.parent;
+					}
+
+					// If the id has been declared
+					if (!declaredL || !declaredR)
+					{
+						putMessage("UNDECLARED VARIABLE ERROR. YOU'RE TESTING THINGS THAT DON'T EXIST, FAILURE FOR YOU.");
+
+						if (!declaredL) {
+							putMessage("VARIABLE " + LHC + " DOES NOT EXIST YET, SO DON'T TRY USING IT.");
+						}
+						if (!declaredR) {
+							putMessage("VARIABLE " + RHC + " DOES NOT EXIST YET, SO DON'T TRY USING IT.");
+						}
+
+						errorCount++;
+					}
+
+				}
 				// If an op
 				else if (node.name == "+" || node.name == "-")
 				{
-
-					// Decrement child counter - one child has been considered
-					childCounter--;
-					/*
-					// Note to self: op expr must be DIGIT [OP] [DIGIT OR ID]
-						// Digit OP String --> Type mismatch
-						// Can assume lhs is a digit from successful parse/the grammar
-						// Can assume rhs is a digit or an id
-					var LHS = node.children[0].name;
-					var RHS = node.children[1].name;
-
-					// If RHS is an id check to ensure that it is declared and initialized
-					if (typeof RHS == 'string' && !isNumber(RHS)) {
-						
-						var declared = false;
-						var init = false;
-						var tempscope = symbolTable.curr;
-
-						// Runs up symbol table tree to check if id has been declared and initialized
-						// 	in this scope or parent scopes
-						while (tempscope.parent !== undefined && !declared) {
-
-							// Check this scope to see if id has already been declared
-							for (var i = 0; i < tempscope.ids.length; i++)
-							{
-								var currid = tempscope.ids[i].getID();
-
-								if (currid.id == id) {
-									declared = true;
-									if (currid.initialized) {
-										init = true;
-									}
-								}
-							}
-
-							tempscope = tempscope.parent;
-						}
-
-						// If the id has not yet been declared, warning
-						if (!declared) {
-							putMessage("WARNING UNDECLARED IDENTIFIER, HOW CAN YOU OPERATE ON NONEXISTENT IDS?");
-						}
-						// If the id has not yet been initialized, warning
-						else if (!init) {
-							putMessage("WARNING UNINITIALIZED VARIABLE, HOW ARE YOU SUPPOSED TO OPERATE ON NOTHING?");
-						}
-						else {
-							// Do nothing, all is well
-						}
-						
-
-					}
-					// Else, all is well
-					else {
-						// Do nothing
-					}
-					*/
-
+					// Do nothing
 
 				}
-
-				/* If all of the children have been considered for the current scope, move back up
-				if (childCounter == 0)
-				{
-					//symbolTable.curr = symbolTable.curr.parent;
-
-					//var index = node.parent.children.indexOf(node);
-					//console.log("index: " + index);
-					//var children = node.parent.children.length;
-					//console.log("number of children: " + children);
-
-					// Number of children left to consider = number of children - (index of current node + 1)
-					//childCounter = children - (index + 1);
-
-					//console.log("MOVED UP A SCOPE, childCounter: " + childCounter);
-
-
-					// ** FORGOTTEN I THINK
-					// Sets child counter to -1 so it doesn't cause any
-					// problems until it's used again
-					//childCounter--;
-				}
-				*/
 
 				// Recursive expansion
 				for (var j = 0; j < node.children.length; j++)
 				{
-
-					//console.log(depth + "||  j:" + j + "\tNODE: " + node.name + "\tchildren: " + node.children.length);
-
 					astWalk(node.children[j], depth + 1);
 
 					// Once a block is done being recursively expanded, step up a level in the symbol table
 					if (node.name == "block" && j == node.children.length - 1) {
 
 						symbolTable.curr = symbolTable.curr.parent;
-						//console.log("WENT UP A SYMTABLE LEVEL");
 					}
 				}
 
