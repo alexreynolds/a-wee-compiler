@@ -10,7 +10,6 @@ function codeGeneration(ast) {
 	// Begins at 0
 	var tempAcc = 0;
 	var jumpAcc = 0;
-
 	// Flags for items requiring multiple levels of analyzing
 	// The variables hold the Temp locations of the items that must be updated
 	var boolEqualFlag = false;
@@ -146,37 +145,34 @@ function codeGeneration(ast) {
 			{
 				var leftchild = node.children[0].name;
 				var rightchild = node.children[1].name;
-				id1 = "";
-				id2 = "";				// Variables to hold potential findings
-				var lefttype = "";
-				var righttype = "";
-				var needEval = false;
+				var id1 = "";
+				var id2 = "";				// Variables to hold potential findings
+				var lefttemp = false;
+				var righttemp = false;
 
+				// Checks if LHC is an id
 				if (isId(leftchild)) {
 					id1 = leftchild;
-					// Gets the type assignment from most recent declaration in sym table
-					var lefttype = STtypesearch(symbolTable.curr, id1);
-				}
-				else { 
-					var check = checkType(leftchild); 
-					lefttype = check[0];
-					if (check[1]) { needEval = true; }
+					// Gets the temp location of LHC
+					var leftscope = STscopeesearch(symbolTable.curr, id1);
+					lefttemp = staticData.getEntry(id1, leftscope).temp;
 				}
 
+				// Checks if RHC is an id
 				if (isId(rightchild)) {
 					id2 = rightchild;
-					var lefttype = STtypesearch(symbolTable.curr, id2);
+					// Gets the temp location of RHC
+					var rightscope = STscopeesearch(symbolTable.curr, id2);
+					righttemp = staticData.getEntry(id2, rightscope).temp;
 				}
-				else {
-					var check = checkType(rightchild);
-					righttype = check[0];l
-					if (check[1]) { needEval = true; }
-				}
+				
+				// Evaluate equal?
+				equalEval(leftchild, rightchild, lefttemp, righttemp, boolEqualFlag, jumpAcc);
 
-				if (boolEqualFlag) {
-					// Evaluate so the boolean in flag has a value
-					// Branch and have next op be bool = true, then bool = false
-				}
+				// Reset flag
+				if (boolEqualFlag) { boolEqualFlag = false; }
+				// Increment jump accumulator
+				jumpAcc++;
 			}
 
 		// End branch node case

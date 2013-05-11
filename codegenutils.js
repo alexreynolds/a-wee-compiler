@@ -243,13 +243,12 @@ function isOp(value) {
 // Used to check the type of the given input, a node name
 // Returns a string indicating type of input
 function checkType(value) {
-	if (isId(value)) { return ["id", true]; }
-	else if (isOp(value)) { return ["int", true]; }
-	else if (isNumber(value)) { return ["int", false]; }
-	else if (value == "true" || value == "false") { return ["boolean", false]; }
-	else if (value == "equal?") { return ["boolean", true]}
+	if (isOp(value)) { return "op"; }
+	else if (isNumber(value)) { return "int"; }
+	else if (value == "true" || value == "false") { return "boolean"; }
+	else if (value == "equal?") { return "boolean"; }
 	else if (value.length > 1) { return "string"; }
-	else { return ["MYSTERY", false]; }
+	else { return "MYSTERY"; }
 }
 
 // Stores an integer to be used for boolean purposes at the beginning of the environment
@@ -370,7 +369,7 @@ function assignBoolean(temp, scope, value) {
 	else { value == "01"; }
 
 	execEnv.addEntry("A9");		// Load accumulator
-	execEnv.addEntry(value);	// Store value 0
+	execEnv.addEntry(value);	// Store value
 	execEnv.addEntry("8D");		// Store accumulator in memory
 	execEnv.addEntry(temp);		// Temp location
 	execEnv.addEntry("XX");		// T#XX
@@ -431,9 +430,70 @@ function intExprEval(startnode) {
 	else { return [acc, id]; }
 }
 
-// Evaluates equal? statements	*NOTE should pass flags in for things (used for if, while, bools)
-function equalEval() {
+// Evaluates equal? statements
+// Given LHS, RHS, temp values of both (if they are ids), flag (temp location if needs to be stored)
+function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 
+	var boolVal = "";
+	var jumpTemp = "J" + jumpCount.toString();
+	var idtemp = "";
+	var constant = "";
+
+	// If evaluating two variables
+	if (lefttemp && righttemp) {
+		execEnv.addEntry("AE");		// Load X register with contents of LHS
+		execEnv.addEntry(lefttemp.substring(0,1));
+		execEnv.addEntry(lefttemp.substring(2,3));
+		execEnv.addEntry("EC");		// Compare X register to contents of RHS
+		execEnv.addEntry(righttemp.substring(0,1));
+		execEnv.addEntry(lefttemp.substring(2,3));
+		execEnv.addEntry("D0");		// Branch on NOT EQUAL
+		execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
+
+		// If flag indicates value to be stored in flag temp
+		if (flag) {
+			// If true
+			execEnv.addEntry("A9");		// Load accumulator
+			execEnv.addEntry("01");		// Store true
+			execEnv.addEntry("8D");		// Store accumulator in memory
+			execEnv.addEntry(flag.substring(0,1));		// Temp location
+			execEnv.addEntry(flag.substring(2,3));		// T#XX
+
+			// Set jump table entry to represent jumping over above code
+			jumpsTable.newEntry(jumpTemp, 6);
+
+			// If false
+			execEnv.addEntry("A9");		// Load accumulator
+			execEnv.addEntry("00");		// Store false
+			execEnv.addEntry("8D");		// Store accumulator in memory
+			execEnv.addEntry(flag.substring(0,1));		// Temp location
+			execEnv.addEntry(flag.substring(2,3));		// T#XX
+		}
+		// Else, simply add jump to jumps table
+		else {
+			// Add jump to jump table
+			jumpsTable.newEntry(jumpTemp, "?");
+		}
+	}
+	// If evaluating a variable and a constant
+	else if (lefttemp || righttemp) {
+
+		// Sets temp location of id and constant to check
+		if (lefttemp) {
+			idtemp = lefttemp; 
+			constant = rhs;
+		}
+		else {
+			idtemp = righttemp;
+			constant = lhs;
+		}
+
+
+
+
+	}
+
+	// If evaluating two constants
 }
 
 // Formats integers to be two digit strings
