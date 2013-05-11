@@ -15,6 +15,8 @@ function codeGeneration(ast) {
 	var boolEqualFlag = false;
 	var intExprFlag = false;
 	var ifwhileFlag = false;
+	// Counts how many op entries have been made since jump call (for jump table)
+	var jumpCounter = 0;
 
 
 
@@ -303,12 +305,14 @@ function codeGeneration(ast) {
 	// End of AST walkthrough()
 	};
 
-
+	console.log("AST WALKTHROUGH");
 	// Initial call for recursive astWalkthrough()
 	// Starts at ast root, depth 0
 	astWalkthrough(ast.root, 0);
 
+	console.log("BACKPATCH");
 	// Backpatch temporary values
+	backpatch();
 
 
 // End codeGeneration()

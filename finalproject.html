@@ -259,9 +259,14 @@ function btnCompile_click()
                 putMessage("IT'S EVEN TYPE CHECKED AND EVERYTHING OH JOY.\n");
 
                 // Generate code
-                //putMessage("WOW YOU MADE IT TO CODE GEN, GO YOU.");
+                putMessage("WOW YOU MADE IT TO CODE GEN, GO YOU.");
+                codeGeneration(ast);
                 // Print out code
-                //putMessage(finalopcode);
+                finalopcode = execEnv.toString();
+                putMessage("AND HERE'S YOUR FINAL OP CODE. NOW SCRAM AND LEAVE ME ALONE.");
+                putMessage("=======");
+                putMessage(finalopcode);
+                putMessage("=======");
             }
             else
             {

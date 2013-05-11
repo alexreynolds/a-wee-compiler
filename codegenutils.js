@@ -22,20 +22,6 @@ function ExecEnv () {
 
 	// Initialize multiple rows
 	for (var n = 0; n < 12 ; n++) {
-		this.newRow();
-	}
-
-	// Points to the row currently being edited in table
-	this.currRow = this.content[0];
-
-	// Current index of next open spot
-	this.frontindex = 0;
-
-	// Current index of last open space in table
-	this.tailindex = this.content.length * 8 - 1;
-
-	// Adds a new row to the table
-	this.newRow = function () {
 
 		// Constructs row
 		var row = [];
@@ -47,7 +33,16 @@ function ExecEnv () {
 
 		// Adds row to table content
 		this.content.push(row);
-	};
+	}
+
+	// Points to the row currently being edited in table
+	this.currRow = this.content[0];
+
+	// Current index of next open spot
+	this.frontindex = 0;
+
+	// Current index of last open space in table
+	this.tailindex = this.content.length * 8 - 1;
 
 	// Adds a new cell of entry to the table
 	this.addEntry = function (opcode) {
@@ -55,8 +50,11 @@ function ExecEnv () {
 		var row = Math.floor(this.frontindex / this.content.length);
 		var column = this.frontindex % 8;
 
+		console.log("ADD ENTRY: " + opcode);
+
 		// Adds entry to the first open spot in the current row
 		this.content[row][column] = opcode;
+
 
 		// Increments front end index
 		this.frontindex++;
@@ -82,17 +80,19 @@ function ExecEnv () {
 	this.toString = function () {
 
 		// String of code to be returned
-		finalopcode = "";
+		var code = "";
 
 		// Step through the table to add all of the values to the string
 		// Iterate through rows
 		for (var k = 0; k < this.content.length; k++) {
 			// Iterate through columns
 			for (var m = 0; m < 8; m++) {
-				finalopcode = finalopcode + " " + this.content[k][m];
+				code = code + " " + this.content[k][m];
 			}
 		}
-	}
+
+		return code;
+	};
 
 
 }
@@ -127,9 +127,9 @@ function StaticDataTable () {
 	this.getEntry = function (varname, scope) {
 
 		// Finds the index of the entry to remove in the entries array
-		for (var i = 0; i < entries.length ; i++) {
+		for (var i = 0; i < this.entries.length ; i++) {
 
-			var tempentry = entries[i];
+			var tempentry = this.entries[i];
 
 			if (tempentry.variable == varname && tempentry.scope == scope) {
 
@@ -311,8 +311,8 @@ function assignInt(temp, value) {
 	execEnv.addEntry("A9");						// Load accumulator
 	execEnv.addEntry(value);					// Store value in acc
 	execEnv.addEntry("8D");						// Store accumulator in memory
-	execEnv.addEntry(temp.substring(0,1));		// Temp location
-	execEnv.addEntry(temp.substring(2,3));		// T#XX
+	execEnv.addEntry(temp.substring(0,2));		// Temp location
+	execEnv.addEntry(temp.substring(2,4));		// T#XX
 
 }
 
@@ -326,11 +326,11 @@ function assignIntId(temp1, value, temp2) {
 	execEnv.addEntry("A9");						// Load accumulator with a constant
 	execEnv.addEntry(value);					// Store value in acc
 	execEnv.addEntry("6D");						// Add value stored in second id
-	execEnv.addEntry(temp2.substring(0,1));		// Found at location
-	execEnv.addEntry(temp2.substring(2,3));		// T#XX
+	execEnv.addEntry(temp2.substring(0,2));		// Found at location
+	execEnv.addEntry(temp2.substring(2,4));		// T#XX
 	execEnv.addEntry("8D");						// Store accumulator in memory
-	execEnv.addEntry(temp1.substring(0,1));		// Store at id1's Temp location
-	execEnv.addEntry(temp1.substring(2,3));		// T#XX
+	execEnv.addEntry(temp1.substring(0,2));		// Store at id1's Temp location
+	execEnv.addEntry(temp1.substring(2,4));		// T#XX
 
 }
 
@@ -380,11 +380,11 @@ function assignBoolean(temp, scope, value) {
 function assignId(temp1, temp2) {
 
 	execEnv.addEntry("AD"); 				// Load accumulator from memory
-	execEnv.addEntry(temp2.substring(0,1));
-	execEnv.addEntry(temp2.substring(2,3));	// Load value at id 2
+	execEnv.addEntry(temp2.substring(0,2));
+	execEnv.addEntry(temp2.substring(2,4));	// Load value at id 2
 	execEnv.addEntry("8D"); 				// Store accumulator in memory
-	execEnv.addEntry(temp1.substring(0,1));
-	execEnv.addEntry(temp1.substring(2,3));	// Store accumulator in id 1
+	execEnv.addEntry(temp1.substring(0,2));
+	execEnv.addEntry(temp1.substring(2,4));	// Store accumulator in id 1
 
 }
 
@@ -393,16 +393,16 @@ function printId(temp, type) {
 
 	if (type == "int")	{
 		execEnv.addEntry("AC");					// Load accumulator
-		execEnv.addEntry(temp.substring(0,1));	// With id value
-		execEnv.addEntry(temp.substring(2,3));
+		execEnv.addEntry(temp.substring(0,2));	// With id value
+		execEnv.addEntry(temp.substring(2,4));
 		execEnv.addEntry("A2");					// Load X reg with 1
 		execEnv.addEntry("01");					// (1 = print int)
 		execEnv.addEntry("FF");					// System call
 	}
 	else if (type == "string") {
 		execEnv.addEntry("AC");					// Load accumulator
-		execEnv.addEntry(temp.substring(0,1));	// With id value
-		execEnv.addEntry(temp.substring(2,3));
+		execEnv.addEntry(temp.substring(0,2));	// With id value
+		execEnv.addEntry(temp.substring(2,4));
 		execEnv.addEntry("A2");					// Load X reg with 2
 		execEnv.addEntry("02");					// (2 = print string)
 		execEnv.addEntry("FF");					// System call
@@ -424,8 +424,8 @@ function printInt(value, temp, temploc) {
 			execEnv.addEntry("A9");						// Load accumulator with a constant
 			execEnv.addEntry(value);					// Store value in acc
 			execEnv.addEntry("6D");						// Add value stored in second id
-			execEnv.addEntry(temp.substring(0,1));		// Found at location
-			execEnv.addEntry(temp.substring(2,3));		// T#XX
+			execEnv.addEntry(temp.substring(0,2));		// Found at location
+			execEnv.addEntry(temp.substring(2,4));		// T#XX
 			execEnv.addEntry("8D");						// Store accumulator in memory
 			execEnv.addEntry(temploc);					// At temp int values' temp location
 			execEnv.addEntry("XX");						// temploc + XX
@@ -454,8 +454,8 @@ function printInt(value, temp, temploc) {
 function printString(temp) {
 
 	execEnv.addEntry("AC");					// Load accumulator
-	execEnv.addEntry(temp.substring(0,1));	// With string value from temp
-	execEnv.addEntry(temp.substring(2,3));
+	execEnv.addEntry(temp.substring(0,2));	// With string value from temp
+	execEnv.addEntry(temp.substring(2,4));
 	execEnv.addEntry("A2");					// Load X reg with 2
 	execEnv.addEntry("02");					// (2 = print string)
 	execEnv.addEntry("FF");					// System call
@@ -465,8 +465,8 @@ function printString(temp) {
 function printBoolean(temp) {
 	
 	execEnv.addEntry("AC");					// Load accumulator
-	execEnv.addEntry(temp.substring(0,1));	// With string value from temp
-	execEnv.addEntry(temp.substring(2,3));
+	execEnv.addEntry(temp.substring(0,2));	// With string value from temp
+	execEnv.addEntry(temp.substring(2,4));
 	execEnv.addEntry("A2");					// Load X reg with 2
 	execEnv.addEntry("02");					// (2 = print string)
 	execEnv.addEntry("FF");					// System call
@@ -528,11 +528,11 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 	if (lefttemp && righttemp) {
 
 		execEnv.addEntry("AE");		// Load X register with contents of LHS
-		execEnv.addEntry(lefttemp.substring(0,1));
-		execEnv.addEntry(lefttemp.substring(2,3));
+		execEnv.addEntry(lefttemp.substring(0,2));
+		execEnv.addEntry(lefttemp.substring(2,4));
 		execEnv.addEntry("EC");		// Compare X register to contents of RHS
-		execEnv.addEntry(righttemp.substring(0,1));
-		execEnv.addEntry(lefttemp.substring(2,3));
+		execEnv.addEntry(righttemp.substring(0,2));
+		execEnv.addEntry(righttemp.substring(2,4));
 		execEnv.addEntry("D0");		// Branch on NOT EQUAL
 		execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
@@ -556,8 +556,8 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 			execEnv.addEntry("A2");		// Load X reg with int constant
 			execEnv.addEntry(parseInt(constant));
 			execEnv.addEntry("EC");		// Check X reg against contents of id
-			execEnv.addEntry(idtemp.substring(0,1));
-			execEnv.addEntry(idtemp.substring(2,3));
+			execEnv.addEntry(idtemp.substring(0,2));
+			execEnv.addEntry(idtemp.substring(2,4));
 			execEnv.addEntry("DO");		// Branch on NOT EQUAL
 			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
@@ -575,8 +575,8 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 			execEnv.addEntry("A2");		// Load X reg with boolean value
 			execEnv.addEntry(constant);
 			execEnv.addEntry("EC");		// Check X reg against contents of id
-			execEnv.addEntry(idtemp.substring(0,1));
-			execEnv.addEntry(idtemp.substring(2,3));
+			execEnv.addEntry(idtemp.substring(0,2));
+			execEnv.addEntry(idtemp.substring(2,4));
 			execEnv.addEntry("DO");		// Branch on NOT EQUAL
 			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
@@ -637,8 +637,8 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 		execEnv.addEntry("A9");		// Load accumulator
 		execEnv.addEntry("01");		// Store true
 		execEnv.addEntry("8D");		// Store accumulator in memory
-		execEnv.addEntry(flag.substring(0,1));		// Temp location
-		execEnv.addEntry(flag.substring(2,3));		// T#XX
+		execEnv.addEntry(flag.substring(0,2));		// Temp location
+		execEnv.addEntry(flag.substring(2,4));		// T#XX
 
 		// Set jump table entry to represent jumping over above code
 		jumpsTable.newEntry(jumpTemp, 6);
@@ -647,8 +647,8 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 		execEnv.addEntry("A9");		// Load accumulator
 		execEnv.addEntry("00");		// Store false
 		execEnv.addEntry("8D");		// Store accumulator in memory
-		execEnv.addEntry(flag.substring(0,1));		// Temp location
-		execEnv.addEntry(flag.substring(2,3));		// T#XX
+		execEnv.addEntry(flag.substring(0,2));		// Temp location
+		execEnv.addEntry(flag.substring(2,4));		// T#XX
 	}
 	// Else, simply add jump to jumps table
 	else {
@@ -742,7 +742,7 @@ function STtypesearch (node, id) {
 
 			if (currid == id) {
 				found = true;
-				return node.scope[i].getType();
+				return node.ids[i].getType();
 			}
 		}
 
@@ -755,7 +755,7 @@ function STtypesearch (node, id) {
 // Returns string indicating table found in
 function tableSearch(id) {
 
-	var table == "";
+	var table = "";
 
 	for (var i = 0; i < heapData.length; i++) {
 		if (heapData[i].variable = id) {
@@ -785,7 +785,12 @@ function backpatch() {
 
 		// Address to store variable at in environment
 		// (Hex number of next open position in table)
-		address = execEnv.frontindex.toString(16);
+		address = execEnv.frontindex.toString(16).toUpperCase();
+
+		// Makes address of form "0#"
+		if (address.length < 2) { address = "0" + address; }
+
+		console.log("BACKPATCH ADDRESS: " + address);
 
 		// Fill cell in environment table with 00 as placeholder for variable
 		execEnv.addEntry("00");
@@ -793,7 +798,7 @@ function backpatch() {
 		// Temp value of variable
 		var temp = staticData.entries[i].temp;
 		// Extracts "T#" from string
-		temp = temp.substring(0,1);
+		temp = temp.substring(0,2);
 
 		// Replace all instances of temp variable with address
 		// Replace all instances of XX with 00
@@ -801,9 +806,11 @@ function backpatch() {
 			for (var col = 0; col < 8; col++) {
 				// If an instance of the variable, replace with address
 				if (execEnv.content[row][col] == temp) {
+					console.log("REPLACED TEMP");
 					execEnv.content[row][col] = address;
 				}
 				else if (execEnv.content[row][col] == "XX") {
+					console.log("REPLACED XX");
 					execEnv.content[row][col] = "00";
 				}
 			}
