@@ -14,6 +14,7 @@ function codeGeneration(ast) {
 	// The variables hold the Temp locations of the items that must be updated
 	var boolEqualFlag = false;
 	var intExprFlag = false;
+	var ifwhileFlag = false;
 
 
 
@@ -81,7 +82,7 @@ function codeGeneration(ast) {
 					// If value is an IntExpr
 					if (isOp(value)) {
 						// Evaluate the operations
-						var newval = intExprEval(value);
+						var newval = intExprEval(node.children[1]);
 						// Operations contained a id, newval = [acc, id]
 						if (!isNumber(newval)) {
 							// id must be evaluated with the int
@@ -165,6 +166,19 @@ function codeGeneration(ast) {
 					var rightscope = STscopeesearch(symbolTable.curr, id2);
 					righttemp = staticData.getEntry(id2, rightscope).temp;
 				}
+
+				// If LHC or RHC is an IntExpr, eval and save value to LHC/RHC
+				// *** CURRENTLY ASSUMES NO ID IN INTEXPR BECAUSE I CAN'T DO THAT RIGHT NOW ***
+				if (checkType(leftchild) == "int" && isOp(leftchild)) {
+					leftchild = intExprEval(node.children[0]);
+
+					if (leftchild instanceof Array) { console.log("HALP: LHS of equal contains an id to evaluate."); }
+				}
+				else if (checkType(rightchild) == "int" && isOp(rightchild)) {
+					rightchild = intExprEval(node.children[1]);
+
+					if (rightchild instanceof Array) { console.log("HALP: RHS of equal contains an id to evaluate."); }
+				}
 				
 				// Evaluate equal?
 				equalEval(leftchild, rightchild, lefttemp, righttemp, boolEqualFlag, jumpAcc);
@@ -174,11 +188,99 @@ function codeGeneration(ast) {
 				// Increment jump accumulator
 				jumpAcc++;
 			}
+			// NODE = PRINT
+			else if (node.name == "print")
+			{
+				// Item to be printed
+				var value = node.children[0].name;
+				var type = "";
+				var temp = "";
+
+				// If value is id
+				if (isId(value)) {
+					// Gets the scope value from most recent declaration in sym table
+					var scope = STscopesearch(symbolTable.curr, id);
+					// See if value is in Static or Heap data (int or string)
+					var table = tableSearch(value);
+					if (table == "heap") {
+						type = "string";
+						temp = heapData.getEntry(value, scope).temp;
+					}
+					else { 
+						type = "int";
+						temp = staticData.getEntry(value, scope).temp;
+					}
+
+					printId(temp, type);
+				}
+				// If value is int
+				else if (checkType(value) == "int") {
+					// If value is an int expression
+					if (isOp(value)) {
+						// Evaluate the operations
+						var newvalue = intExprEval(node.children[1]);
+						// Operations contained a id, newval = [acc, id]
+						if (!isNumber(newvalue)) {
+
+							// id must be evaluated with the int
+							var scope = STscopesearch(symbolTable.curr, newvalue[1]);
+							var temp = staticData.getEntry(newvalue[1], scope2);
+
+							// Temploc is location of the temporary integer that will be stored
+							var temploc = "T" + tempAcc;
+							tempAcc++;
+
+							printInt(value, temp, temploc);
+						}
+						// Operations yielded an int
+						else {
+							printInt(newvalue, false, false);
+						}
+					}
+					// If value is just an int
+					else {
+						printInt(value, false, false);
+					}
+				}
+				// If value is string
+				else if (checkType(value) == "string") {
+
+					var temp = "T" + tempAcc;
+					tempAcc++;
+
+					// Declare and assign value string in environment to be referenced
+					// Item is named with the first two characters of its temp value
+					declareString(temp, temp, symbolTable.curr.scope);
+					assignString(temp + "XX", temp, symbolTable.curr.scope, value);
+
+					printString(temp + "XX");
+
+				}
+				// If value is boolean
+				else if (checkType(value) == "boolean") {
+
+					// If value is an equal? statement
+					if (value == "equal?") {
+						console.log("PRINTING EQUAL STATEMENT VALUES I CAN'T.");
+					}
+					// Value is a boolVal
+					else {
+						// Print called using temp locations of "true" and "false"
+						// strings in the environment (created at the start)
+						if (value == "true") {
+							printBoolean("B1XX");
+						}
+						else {
+							printBoolean("B2XX");
+						}
+					}
+				}
+			}
+			// NODE = WHILE
+			// NODE = IF
 
 		// End branch node case
 		}
-
-
 
 
 		// Recursive tree expansion
@@ -191,6 +293,9 @@ function codeGeneration(ast) {
 
 				symbolTable.curr = symbolTable.curr.parent;
 
+				// If going up a level while in an if/while statement, turn off flag and do... something
+				ifwhileFlag = false;
+
 			}
 		}
 
@@ -202,6 +307,8 @@ function codeGeneration(ast) {
 	// Initial call for recursive astWalkthrough()
 	// Starts at ast root, depth 0
 	astWalkthrough(ast.root, 0);
+
+	// Backpatch temporary values
 
 
 // End codeGeneration()

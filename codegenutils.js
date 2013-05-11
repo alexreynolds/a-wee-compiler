@@ -28,8 +28,8 @@ function ExecEnv () {
 	// Points to the row currently being edited in table
 	this.currRow = this.content[0];
 
-	// Current index of last added cell
-	this.frontindex = -1;
+	// Current index of next open spot
+	this.frontindex = 0;
 
 	// Current index of last open space in table
 	this.tailindex = this.content.length * 8 - 1;
@@ -85,18 +85,10 @@ function ExecEnv () {
 		finalopcode = "";
 
 		// Step through the table to add all of the values to the string
-
 		// Iterate through rows
 		for (var k = 0; k < this.content.length; k++) {
 			// Iterate through columns
 			for (var m = 0; m < 8; m++) {
-
-				// If the cell is empty, fill with 00
-				if (this.content[k][m] == "")
-				{ 
-					this.content[k][m] = "00";
-				}
-
 				finalopcode = finalopcode + " " + this.content[k][m];
 			}
 		}
@@ -243,7 +235,7 @@ function isOp(value) {
 // Used to check the type of the given input, a node name
 // Returns a string indicating type of input
 function checkType(value) {
-	if (isOp(value)) { return "op"; }
+	if (isOp(value)) { return "int"; }
 	else if (isNumber(value)) { return "int"; }
 	else if (value == "true" || value == "false") { return "boolean"; }
 	else if (value == "equal?") { return "boolean"; }
@@ -254,15 +246,21 @@ function checkType(value) {
 // Stores an integer to be used for boolean purposes at the beginning of the environment
 function setEnvironment () {
 
-	// Adds boolean 0 (false) to the environment
+	// Adds boolean 1 (true) to the environment
 	execEnv.addEntry("A9");	// Load accumulator
-	execEnv.addEntry("00");	// Store value 0
+	execEnv.addEntry("01");	// Store value true
 	execEnv.addEntry("8D");	// Store accumulator in memory
 	execEnv.addEntry("B0");	// Temp location
 	execEnv.addEntry("XX");	// BOXX
 
 	// Adds its entry to Static Data table
-	staticData.addEntry("B0XX", bool, -1);
+	staticData.newEntry("B0XX", bool, -1);
+
+	// Adds strings "true" and "false" to the environment (for printing)
+	declareString("true", "B1XX", -1);
+	assignString("B1XX", "true", -1, "true");
+	declareString("false", "B2XX", -1);
+	assignString("B2XX", "false", -1, "false");
 
 }
 
@@ -272,11 +270,11 @@ function declareInt(id, temp, scope) {
 	execEnv.addEntry("A9");		// Load accumulator
 	execEnv.addEntry("00");		// Store value 0
 	execEnv.addEntry("8D");		// Store accumulator in memory
-	execEnv.addEntry(temp);	// Temp location
+	execEnv.addEntry(temp);		// Temp location
 	execEnv.addEntry("XX");		// T#XX
 
 	// Add the int variable to the Static Data table
-	staticData.addEntry(temp + "XX", id, scope);
+	staticData.newEntry(temp + "XX", id, scope);
 
 }
 
@@ -284,7 +282,7 @@ function declareInt(id, temp, scope) {
 function declareString(id, temp, scope) {
 
 	// Add string variable to the Heap
-	heapData.addEntry(temp + "XX", id, scope);
+	heapData.newEntry(temp + "XX", id, scope);
 }
 
 // Declares a boolean in the environment, given its name, Temp address (T#) & scope
@@ -300,7 +298,7 @@ function declareBoolean(id, temp, scope) {
 	execEnv.addEntry("XX");		// T#XX
 
 	// Add the boolean variable to the Static Data table
-	staticData.addEntry(temp + "XX", id, scope);
+	staticData.newEntry(temp + "XX", id, scope);
 }
 
 // Assigns an integer in the environment, given its Temp address (T#) and value
@@ -360,6 +358,8 @@ function assignString(temp, id, scope, value) {
 
 	// Updates the offset in the string's entry in the heap
 	heapData.getEntry(id, scope).offset = -(value.length + 1);
+	// Updates location in string's entry in heap
+	heapData.getEntry(id, scope).temp = stringLoc + "00";
 }
 
 // Assigns a value to a boolean in the environment, given its Temp (T#), scope & value
@@ -386,6 +386,90 @@ function assignId(temp1, temp2) {
 	execEnv.addEntry(temp1.substring(0,1));
 	execEnv.addEntry(temp1.substring(2,3));	// Store accumulator in id 1
 
+}
+
+// Prints the value of an id, given its temp address and type
+function printId(temp, type) {
+
+	if (type == "int")	{
+		execEnv.addEntry("AC");					// Load accumulator
+		execEnv.addEntry(temp.substring(0,1));	// With id value
+		execEnv.addEntry(temp.substring(2,3));
+		execEnv.addEntry("A2");					// Load X reg with 1
+		execEnv.addEntry("01");					// (1 = print int)
+		execEnv.addEntry("FF");					// System call
+	}
+	else if (type == "string") {
+		execEnv.addEntry("AC");					// Load accumulator
+		execEnv.addEntry(temp.substring(0,1));	// With id value
+		execEnv.addEntry(temp.substring(2,3));
+		execEnv.addEntry("A2");					// Load X reg with 2
+		execEnv.addEntry("02");					// (2 = print string)
+		execEnv.addEntry("FF");					// System call
+	}
+	else
+	{
+		console.log("WHOOPS trying to print an id of unknown type!");
+	}
+
+}
+
+// Prints the value of an int, given its temp address and type
+function printInt(value, temp, temploc) {
+
+		value = fixInt(parseInt(value));
+
+		// If printing an int expression with an id
+		if (temp) {
+			execEnv.addEntry("A9");						// Load accumulator with a constant
+			execEnv.addEntry(value);					// Store value in acc
+			execEnv.addEntry("6D");						// Add value stored in second id
+			execEnv.addEntry(temp.substring(0,1));		// Found at location
+			execEnv.addEntry(temp.substring(2,3));		// T#XX
+			execEnv.addEntry("8D");						// Store accumulator in memory
+			execEnv.addEntry(temploc);					// At temp int values' temp location
+			execEnv.addEntry("XX");						// temploc + XX
+			execEnv.addEntry("A0");						// Load Y reg with temp int value
+			execEnv.addEntry(temploc);
+			execEnv.addEntry("XX");
+			execEnv.addEntry("A2");						// Load X reg with 1
+			execEnv.addEntry("01");						// (1 = print int)
+			execEnv.addEntry("FF");						// System call
+
+			// Add the temporary int variable to the Static Data table
+			staticData.newEntry(temploc + "XX", "temp", -1);
+		}
+		// If only printing an int
+		else {
+			execEnv.addEntry("A0");		// Load Y reg with value
+			execEnv.addEntry(value);
+			execEnv.addEntry("A2");		// Load X reg with 1
+			execEnv.addEntry("01");		// (1 = print int)
+			execEnv.addEntry("FF");		// System call
+		}
+	
+}
+
+// Prints a string, given its temp address
+function printString(temp) {
+
+	execEnv.addEntry("AC");					// Load accumulator
+	execEnv.addEntry(temp.substring(0,1));	// With string value from temp
+	execEnv.addEntry(temp.substring(2,3));
+	execEnv.addEntry("A2");					// Load X reg with 2
+	execEnv.addEntry("02");					// (2 = print string)
+	execEnv.addEntry("FF");					// System call
+}
+
+// Prints a boolean, given its temp address
+function printBoolean(temp) {
+	
+	execEnv.addEntry("AC");					// Load accumulator
+	execEnv.addEntry(temp.substring(0,1));	// With string value from temp
+	execEnv.addEntry(temp.substring(2,3));
+	execEnv.addEntry("A2");					// Load X reg with 2
+	execEnv.addEntry("02");					// (2 = print string)
+	execEnv.addEntry("FF");					// System call
 }
 
 // Evaluates Int Expressions with operations and returns the final value
@@ -438,9 +522,11 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 	var jumpTemp = "J" + jumpCount.toString();
 	var idtemp = "";
 	var constant = "";
+	var constantType = checkType(constant);
 
 	// If evaluating two variables
 	if (lefttemp && righttemp) {
+
 		execEnv.addEntry("AE");		// Load X register with contents of LHS
 		execEnv.addEntry(lefttemp.substring(0,1));
 		execEnv.addEntry(lefttemp.substring(2,3));
@@ -450,30 +536,6 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 		execEnv.addEntry("D0");		// Branch on NOT EQUAL
 		execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
-		// If flag indicates value to be stored in flag temp
-		if (flag) {
-			// If true
-			execEnv.addEntry("A9");		// Load accumulator
-			execEnv.addEntry("01");		// Store true
-			execEnv.addEntry("8D");		// Store accumulator in memory
-			execEnv.addEntry(flag.substring(0,1));		// Temp location
-			execEnv.addEntry(flag.substring(2,3));		// T#XX
-
-			// Set jump table entry to represent jumping over above code
-			jumpsTable.newEntry(jumpTemp, 6);
-
-			// If false
-			execEnv.addEntry("A9");		// Load accumulator
-			execEnv.addEntry("00");		// Store false
-			execEnv.addEntry("8D");		// Store accumulator in memory
-			execEnv.addEntry(flag.substring(0,1));		// Temp location
-			execEnv.addEntry(flag.substring(2,3));		// T#XX
-		}
-		// Else, simply add jump to jumps table
-		else {
-			// Add jump to jump table
-			jumpsTable.newEntry(jumpTemp, "?");
-		}
 	}
 	// If evaluating a variable and a constant
 	else if (lefttemp || righttemp) {
@@ -488,12 +550,111 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 			constant = lhs;
 		}
 
+		// If checking variable against int
+		if (constantType == "int") {
 
+			execEnv.addEntry("A2");		// Load X reg with int constant
+			execEnv.addEntry(parseInt(constant));
+			execEnv.addEntry("EC");		// Check X reg against contents of id
+			execEnv.addEntry(idtemp.substring(0,1));
+			execEnv.addEntry(idtemp.substring(2,3));
+			execEnv.addEntry("DO");		// Branch on NOT EQUAL
+			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
+		}
+		// If checking variable against a boolean
+		else if (constantType == "boolean") {
+
+			// If constant is an equal? **** IGNORE FOR NOW
+			if (constant == "equal?") { console.log("ALERT NESTED EQUALS GO HOME AND CRY NOW."); }
+
+			// Resets constant to a numerical boolean value
+			if (constant == "true") { constant = "01"; }
+			else { constant = "00"; }
+
+			execEnv.addEntry("A2");		// Load X reg with boolean value
+			execEnv.addEntry(constant);
+			execEnv.addEntry("EC");		// Check X reg against contents of id
+			execEnv.addEntry(idtemp.substring(0,1));
+			execEnv.addEntry(idtemp.substring(2,3));
+			execEnv.addEntry("DO");		// Branch on NOT EQUAL
+			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
+
+		}
+		// If checking variable against a string
+		else if (constantType == "string") {
+
+			var idstr = "";
+
+			// Check if id is in Heap table. If it is, get the string it represents
+			for (var i = 0; i < heapData.entries.length; i++) {
+				if (idtemp == heapData.entries[i].temp) {
+					idstr = getString(heapData.entries[i].offset);
+				}
+			}
+
+			// Compare id string to constant string and store result
+			if (idstr == constant) { constant = "01"; }
+			else { constant = "00"; }
+
+			execEnv.addEntry("A2");		// Load X reg with int constant
+			execEnv.addEntry(constant);
+			execEnv.addEntry("EC");		// Check X reg against boolean true
+			execEnv.addEntry("B0");
+			execEnv.addEntry("XX");
+			execEnv.addEntry("DO");		// Branch on NOT EQUAL
+			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
+
+		}
+		// Else something is not right
+		else
+		{
+			console.log("Trying to evaluate equal? with an id and constant but CONFUSE.");
+		}
+
+	}
+	// If evaluating two constants
+	else {
+
+		// Set constant to proper boolean value
+		if (lhs == rhs) { constant = "01"; }
+		else { constant = "00"; }
+
+		execEnv.addEntry("A2");		// Load X reg with int constant
+		execEnv.addEntry(constant);
+		execEnv.addEntry("EC");		// Check X reg against boolean true
+		execEnv.addEntry("B0");
+		execEnv.addEntry("XX");
+		execEnv.addEntry("DO");		// Branch on NOT EQUAL
+		execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
 	}
 
-	// If evaluating two constants
+	// ADDING THE JUMP ENTRY TO JUMPS TABLE
+	// If flag indicates value to be stored in flag temp
+	if (flag) {
+		// If true
+		execEnv.addEntry("A9");		// Load accumulator
+		execEnv.addEntry("01");		// Store true
+		execEnv.addEntry("8D");		// Store accumulator in memory
+		execEnv.addEntry(flag.substring(0,1));		// Temp location
+		execEnv.addEntry(flag.substring(2,3));		// T#XX
+
+		// Set jump table entry to represent jumping over above code
+		jumpsTable.newEntry(jumpTemp, 6);
+
+		// If false
+		execEnv.addEntry("A9");		// Load accumulator
+		execEnv.addEntry("00");		// Store false
+		execEnv.addEntry("8D");		// Store accumulator in memory
+		execEnv.addEntry(flag.substring(0,1));		// Temp location
+		execEnv.addEntry(flag.substring(2,3));		// T#XX
+	}
+	// Else, simply add jump to jumps table
+	else {
+		// Add jump to jump table
+		jumpsTable.newEntry(jumpTemp, "?");
+	}
 }
 
 // Formats integers to be two digit strings
@@ -508,6 +669,38 @@ function fixInt(value) {
 	}
 
 	return value;
+}
+
+// Creates a string given the offset of a string in environment
+function getString(offset) {
+
+	offset = parseInt(offset);
+	var startindex = (execEnv.content.length - 1) + offset;
+	var str = "";
+
+	for (var i = startindex; i < execEnv.content.length; i++) {
+
+		// Gets the index of where in the row the entry should go
+		var column = this.tailindex % 8;
+		// Gets the index of the row where the entry should go
+		var row = Math.floor(this.tailindex / this.content.length);
+
+		// Appends generated ASCII character to string to return
+		str += hexToString(execEnv.content[row][column]);
+	}
+
+	return str;
+}
+
+// Returns ASCII string given a hex code
+function hexToString(hex) {
+    var str = "";
+
+    for (var i = 0; i < hex.length; i += 2) {
+        str += String.fromCharCode(parseInt(hex.substr(i, 2), 16));
+    }
+
+    return str;
 }
 
 // Steps up through the symbol table looking for the most recent occurrence of given id
@@ -557,4 +750,87 @@ function STtypesearch (node, id) {
 		node = node.parent;
 	}
 }
+
+// Searches heap and static data tables to determine which contains given id
+// Returns string indicating table found in
+function tableSearch(id) {
+
+	var table == "";
+
+	for (var i = 0; i < heapData.length; i++) {
+		if (heapData[i].variable = id) {
+			table = "heap";
+		}
+	}
+
+	for (var j = 0; j < staticData.length; j++) {
+		if (staticData[i].variable = id) {
+			table = "static";
+		}
+	}
+
+	return table;
+
+}
+
+// Goes through the environment and backpatches temporary variables
+function backpatch() {
+
+	var address = execEnv.frontindex;
+
+	// Convert to hex: yourNumber.toString(16);
+
+	// First go through static data table and backpatch all values
+	for (var i = 0; i < staticData.entries.length; i++) {
+
+		// Address to store variable at in environment
+		// (Hex number of next open position in table)
+		address = execEnv.frontindex.toString(16);
+
+		// Fill cell in environment table with 00 as placeholder for variable
+		execEnv.addEntry("00");
+
+		// Temp value of variable
+		var temp = staticData.entries[i].temp;
+		// Extracts "T#" from string
+		temp = temp.substring(0,1);
+
+		// Replace all instances of temp variable with address
+		// Replace all instances of XX with 00
+		for (var row = 0; row < execEnv.content.length; row++) {
+			for (var col = 0; col < 8; col++) {
+				// If an instance of the variable, replace with address
+				if (execEnv.content[row][col] == temp) {
+					execEnv.content[row][col] = address;
+				}
+				else if (execEnv.content[row][col] == "XX") {
+					execEnv.content[row][col] = "00";
+				}
+			}
+		}
+
+		staticData.entries[i].temp = address + "00";
+	}
+
+	// Heap variables are backpatched in code gen (once string is declared)
+
+	// HOW DO JUMP VARIABLES???
+
+	// Go through remaining cells in environment and fill with 00
+	for (var row = 0; row < execEnv.content.length; row++) {
+		for (var col = 0; col < 8; col++) {
+			// If empty, fill with 00
+			if (execEnv.content[row][col] == "") {
+				execEnv.content[row][col] = "00";
+			}
+		}
+	}
+
+}
+
+
+
+
+
+
 
