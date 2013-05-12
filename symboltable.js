@@ -327,12 +327,12 @@ function buildSymbolTable(ast) {
 
 								// Get right hand child node
 								var rhsname = startnode.children[1].name;
-								console.log("RHS: " + rhsname);
+								//console.log("RHS: " + rhsname);
 
 								// If RHC is an id, set it to id to be checked
 								if (!isNumber(rhsname) && rhsname.length == 1 && !(rhsname == "+" || rhsname == "-")) {
 									id2 = rhsname;
-									console.log("RHC id: " + val);
+									//console.log("RHC id: " + val);
 
 								}
 								// If RHC is a string, error
@@ -350,7 +350,7 @@ function buildSymbolTable(ast) {
 							// If the last RHC is an id, check to ensure it has been declared and initialized
 							if (id2) {
 
-								console.log("id: " + id2);
+								//console.log("id: " + id2);
 
 								tempscope = symbolTable.curr;
 
@@ -363,7 +363,7 @@ function buildSymbolTable(ast) {
 									{
 										var currid = tempscope.ids[i];
 
-										if (currid.getID() == val) {
+										if (currid.getID() == id2) {
 											declared2 = true;
 											
 											// If the id has not yet been initialized, issue a warning
@@ -581,7 +581,7 @@ function buildSymbolTable(ast) {
 
 							// Get right hand child node
 							var rhsname = startnode.children[1].name;
-							console.log("RHC: " + rhsname);
+							//console.log("RHC: " + rhsname);
 
 							// If RHC is an id, set it to id to be checked
 							if (!isNumber(rhsname) && rhsname.length == 1 && !(rhsname == "+" || rhsname == "-")) {
@@ -664,12 +664,15 @@ function buildSymbolTable(ast) {
 					//console.log("LHC: " + LHC + "\tRHC: " + RHC);
 					var testLHC = false;	// indicates if theres an if to be checked in the LHC
 					var testRHC = false;	// indicates if theres an if to be checked in the RHC
-					var declaredL = false;		// indicates if the id has been declared already
-					var declaredR = false;		// indicates if second id (if it exists) has been declared already
+					var declaredL = true;		// indicates if the id has been declared already
+					var declaredR = true;		// indicates if second id (if it exists) has been declared already
 					//var decidL = {}	// Will hold id entry in table for type checking if it has been declared
 					//var decidR = {}	// Will hold second id entry (if it exists) in table for type checking if it has been declared
 					
 					var tempscope = symbolTable.curr;
+
+					//console.log("LHC: " + LHC);
+					//console.log("RHC: " + RHC);
 
 					// If left child is an IntExpr that needs to be checked for ids
 					if (LHC == "+" || LHC == "-")
@@ -683,10 +686,11 @@ function buildSymbolTable(ast) {
 							// Get right hand child node
 							var rhsname = startnode.children[1].name;
 
-							// If RHC is an id, set it to LHC to be checked
+							// If LHC is an id, set it to LHC to be checked
 							if (!isNumber(rhsname) && rhsname.length == 1 && !(rhsname == "+" || rhsname == "-")) {
 								LHC = rhsname;
 								testLHC = true;
+								declaredL = false;
 								//console.log("MUST CHECK LHC: " + LHC);
 
 							}
@@ -702,7 +706,7 @@ function buildSymbolTable(ast) {
 							startnode = startnode.children[1];
 						}
 
-						console.log("LHC: " + LHC);
+						//console.log("LHC: " + LHC);
 					}
 
 					// If right child is an IntExpr that needs to be checked for ids
@@ -721,6 +725,7 @@ function buildSymbolTable(ast) {
 							if (!isNumber(rhsname) && rhsname.length == 1 && !(rhsname == "+" || rhsname == "-")) {
 								RHC = rhsname;
 								testRHC = true;
+								declaredR = false;
 								//console.log("MUST CHECK RHC: " + RHC);
 
 							}
@@ -736,7 +741,7 @@ function buildSymbolTable(ast) {
 							startnode = startnode.children[1];
 						}
 
-						console.log("RHC: " + RHC);
+						//console.log("RHC: " + RHC);
 					}
 
 					// If left child is an id

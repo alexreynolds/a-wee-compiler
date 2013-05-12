@@ -147,6 +147,14 @@ var staticData;
 var heapData;
 var jumpsTable;
 var finalopcode = "";   // Final assembly language code
+// Flags for items requiring multiple levels of analyzing
+    var boolEqualFlag = false;
+    var intExprFlag = false;
+    var ifwhileFlag = false;
+    var inIfExpr = false;
+    var inWhileExpr = false;
+var jumpCounter = 0;    // Counts how many op entries have been made since jump call (for jump table)
+var whileCounter = 0;   // Counts how many entries have been made for true statement block for a while statement
 
 function init() {
 
@@ -263,7 +271,7 @@ function btnCompile_click()
                 codeGeneration(ast);
                 // Print out code
                 finalopcode = execEnv.toString();
-                putMessage("AND HERE'S YOUR FINAL OP CODE. NOW SCRAM AND LEAVE ME ALONE.");
+                putMessage("HERE'S YOUR FINAL OP CODE. NOW SCRAM AND LEAVE ME ALONE.\n");
                 putMessage("=======");
                 putMessage(finalopcode);
                 putMessage("=======");

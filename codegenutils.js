@@ -4,12 +4,14 @@ Alex Reynolds
 CMPU-331
 Final Project
 
-codegen.js
+codegenutils.js
 
-	- Generates assembly language code to be interpreted by an OS
-	- Uses the AST generated previously
-	- Can assume that there are no semantic errors in AST at this point,
-	  as function would not be run if so.
+	- Contains functions used to generate code
+	- Object representations of:
+		Execution Environment
+		Static Data Table
+		Heap Data Table
+		Jumps Table
 */
 
 // Execution Environment table object
@@ -47,17 +49,19 @@ function ExecEnv () {
 	// Adds a new cell of entry to the table
 	this.addEntry = function (opcode) {
 
-		var row = Math.floor(this.frontindex / this.content.length);
+		var row = Math.floor(this.frontindex / 8);
 		var column = this.frontindex % 8;
 
-		console.log("ADD ENTRY: " + opcode);
-
 		// Adds entry to the first open spot in the current row
-		this.content[row][column] = opcode;
-
+		this.content[row][column] = opcode.toUpperCase();
 
 		// Increments front end index
 		this.frontindex++;
+
+		// If in if/while statement, increment jump position counter
+		if (ifwhileFlag) {
+			jumpCounter++;
+		}
 	};
 
 	// Adds a new cell of entry to the end of the table
@@ -67,10 +71,10 @@ function ExecEnv () {
 		var column = this.tailindex % 8;
 
 		// Gets the index of the row where the entry should go
-		var row = Math.floor(this.tailindex / this.content.length);
+		var row = Math.floor(this.tailindex / 8);
 
 		// Adds entry to the end of the current row
-		this.content[row][column] = opcode;
+		this.content[row][column] = opcode.toUpperCase();
 
 		// Decrements tailindex
 		this.tailindex--;
@@ -87,7 +91,12 @@ function ExecEnv () {
 		for (var k = 0; k < this.content.length; k++) {
 			// Iterate through columns
 			for (var m = 0; m < 8; m++) {
-				code = code + " " + this.content[k][m];
+				if (code == "") {
+					code += this.content[k][m];
+				}
+				else {
+					code = code + " " + this.content[k][m];
+				}
 			}
 		}
 
@@ -121,18 +130,23 @@ function StaticDataTable () {
 
 		// Adds new entry to entries array
 		this.entries.push(entry);
+
+		console.log("ADDED STATIC ENTRY FOR " + varname + " AT SCOPE " + scope);
 	};
 
 	// Returns an entry from the table, given its variable name and scope
 	this.getEntry = function (varname, scope) {
 
-		// Finds the index of the entry to remove in the entries array
+		console.log("Static get entry var: " + varname + " scope: " + scope);
+
 		for (var i = 0; i < this.entries.length ; i++) {
 
 			var tempentry = this.entries[i];
 
-			if (tempentry.variable == varname && tempentry.scope == scope) {
+			console.log("name: " + tempentry.variable + " scope: " + tempentry.scope);
 
+			if (tempentry.variable == varname && tempentry.scope == scope) {
+				console.log("FOUND");
 				return tempentry;
 			}
 
@@ -161,18 +175,20 @@ function HeapDataTable () {
 
 		// Adds new entry to entries array
 		this.entries.push(entry);
+
+		console.log("ADDED HEAP ENTRY FOR " + varname + " AT SCOPE " + scope);
 	};
 
 	// Returns an entry from the table, given its temp value
 	this.getEntry = function (id, scope) {
 
 		// Finds the index of the entry to remove in the entries array
-		for (var i = 0; i < entries.length ; i++) {
+		for (var i = 0; i < this.entries.length ; i++) {
 
-			var tempentry = entries[i];
+			var tempentry = this.entries[i];
 
-			if ((tempentry.name == id) && (tempentry.scope == scope)) {
-
+			if ((tempentry.variable == id) && (tempentry.scope == scope)) {
+				console.log("found entry");
 				return tempentry;
 			}
 
@@ -204,9 +220,9 @@ function JumpsTable () {
 	this.getEntry = function (tempname) {
 
 		// Finds the index of the entry to remove in the entries array
-		for (var i = 0; i < entries.length ; i++) {
+		for (var i = 0; i < this.entries.length ; i++) {
 
-			var tempentry = entries[i];
+			var tempentry = this.entries[i];
 
 			if (tempentry.temp == tempname) {
 
@@ -254,7 +270,7 @@ function setEnvironment () {
 	execEnv.addEntry("XX");	// BOXX
 
 	// Adds its entry to Static Data table
-	staticData.newEntry("B0XX", bool, -1);
+	staticData.newEntry("B0XX", "bool", -1);
 
 	// Adds strings "true" and "false" to the environment (for printing)
 	declareString("true", "B1XX", -1);
@@ -283,6 +299,7 @@ function declareString(id, temp, scope) {
 
 	// Add string variable to the Heap
 	heapData.newEntry(temp + "XX", id, scope);
+	console.log("string declared");
 }
 
 // Declares a boolean in the environment, given its name, Temp address (T#) & scope
@@ -339,9 +356,12 @@ function assignString(temp, id, scope, value) {
 
 	execEnv.addTailEntry("00");	// Signifies that the string is done
 
+	console.log("Adding string " + value + " of length " + value.length);
+
 	// Steps backward through the string value
 	// Each value is converted to hex and then added to the end of the environment
-	for (var i = value.length - 1; i = 0; i++) {
+	for (var i = value.length - 1; i > -1; i--) {
+
 		var hexChar = value.charCodeAt(i).toString(16).toUpperCase();
 		execEnv.addTailEntry(hexChar);
 	}
@@ -353,13 +373,13 @@ function assignString(temp, id, scope, value) {
 	execEnv.addEntry("AC");
 	execEnv.addEntry(stringLoc);
 	execEnv.addEntry("8D");
-	execEnv.addEntry(temp);
-	execEnv.addEntry("XX");
+	execEnv.addEntry(temp.substring(0,2));
+	execEnv.addEntry(temp.substring(2,4));
 
 	// Updates the offset in the string's entry in the heap
 	heapData.getEntry(id, scope).offset = -(value.length + 1);
 	// Updates location in string's entry in heap
-	heapData.getEntry(id, scope).temp = stringLoc + "00";
+	//heapData.getEntry(id, scope).temp = stringLoc + "00";
 }
 
 // Assigns a value to a boolean in the environment, given its Temp (T#), scope & value
@@ -480,7 +500,7 @@ function intExprEval(startnode) {
 	// Variable to hold second id to check if necessary
 	var id = "";
 	// Accumulator, initialized with value of LHS (a digit)
-	var acc = parseInt(node.children[0]);
+	var acc = parseInt(node.children[0].name);
 
 	// Iterate through RHS until the end of the expression
 	while (node.name == "+" || node.name == "-") {
@@ -496,8 +516,12 @@ function intExprEval(startnode) {
 		// Else RHC is a number, update acc
 		else if (isNumber(rhsname)) {
 
-			if (startnode.name == "+") { acc+=parseInt(rhsname); }
-			else { acc-=parseInt(rhsname); }	
+			if (startnode.name == "+") {
+				acc += parseInt(rhsname);
+			}
+			else {
+				acc -= parseInt(rhsname);
+			}	
 		}
 		else {
 			// Weird shit is going down
@@ -509,9 +533,87 @@ function intExprEval(startnode) {
 	}
 
 	// If no id was found, simply return acc value
-	if (id.length == 0) { return acc; }
+	if (id.length == 0) {
+		return acc;
+	}
 	// Else return array with acc and id found
-	else { return [acc, id]; }
+	else {
+		console.log("return array");
+		var temparray = [];
+		temparray.push(acc);
+		temparray.push(id);
+		return temparray;
+	}
+}
+
+// Performs operations for an If expression
+function ifExprEval(boolVal, jumpCount) {
+
+	// Temporary location for jump
+	var jumpTemp = "J" + jumpCount;
+	jumpCount++;
+
+	execEnv.addEntry("A2");		// Load boolean into X reg
+	execEnv.addEntry(boolVal);
+	execEnv.addEntry("EC");		// Compare to bool val true (01)
+	execEnv.addEntry("B0");		// Stored at B0XX
+	execEnv.addEntry("XX");
+	execEnv.addEntry("D0");		// Branch if z flag = 0
+	execEnv.addEntry(jumpTemp);	// Jump
+
+	// Add jump to jump table
+	jumpsTable.newEntry(jumpTemp, "?");
+
+	// Set flags to start counters
+	inIfExpr = true;
+	ifwhileFlag = true;
+}
+
+// Performs operations for a while expression
+function whileExprEval(boolVal) {
+
+	// Temporary location for jump
+	var jumpTemp = "J" + jumpCount;
+	jumpCount++;
+
+	// Sets in while flag to index of the first entry of while cond
+	inWhileExpr = execEnv.frontindex - 1;
+
+	execEnv.addEntry("A2");		// Load boolean into X reg
+	execEnv.addEntry(boolVal);
+	execEnv.addEntry("EC");		// Compare to bool val true (01)
+	execEnv.addEntry("B0");		// Stored at B0XX
+	execEnv.addEntry("XX");
+	execEnv.addEntry("D0");		// Branch if z flag = 0
+
+	// Add jump to jump table
+	jumpsTable.newEntry(jumpTemp, "?");
+
+	// Set flags to start counters
+	ifwhileFlag = true;	
+
+}
+
+// Finishes while expressions once the statement block ends
+function endWhile(destindex) {
+
+	// Get a true comparison and jump back to start of while loop
+	execEnv.addEntry("A2");		// Load boolean into X reg
+	execEnv.addEntry("01");
+	execEnv.addEntry("EC");		// Compare to bool val true (01)
+	execEnv.addEntry("B0");		// Stored at B0XX
+	execEnv.addEntry("XX");
+	execEnv.addEntry("D0");		// Branch if z flag = 0
+
+	// Get value of jump
+	// To jump backwards (to start of loop), jump forwards in position
+	// until pos loops at 255 and starts back at 0
+	var currIndex = execEnv.frontindex;
+	var jumpDist = destindex + 255 - currIndex;
+	// Convert jump distance to hex and add to environment at end of while loop
+	jumpDist = jumpDist.toString(16).toUpperCase();
+	console.log("JUMPDIST: " + jumpDist);
+	execEnv.addEntry(jumpDist);
 }
 
 // Evaluates equal? statements
@@ -523,6 +625,11 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 	var idtemp = "";
 	var constant = "";
 	var constantType = checkType(constant);
+
+	// Sets inWhileExpr flag to first index of the while statement cond
+	if (inWhileExpr) {
+		inWhileExpr = execEnv.frontindex - 1;
+	}
 
 	// If evaluating two variables
 	if (lefttemp && righttemp) {
@@ -631,7 +738,7 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 	}
 
 	// ADDING THE JUMP ENTRY TO JUMPS TABLE
-	// If flag indicates value to be stored in flag temp
+	// If flag indicates value to be stored in boolean flag temp
 	if (flag) {
 		// If true
 		execEnv.addEntry("A9");		// Load accumulator
@@ -654,6 +761,12 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 	else {
 		// Add jump to jump table
 		jumpsTable.newEntry(jumpTemp, "?");
+
+		// Flag set for in if/while statement
+		// Starts counting number of positions to jump for jump statement
+		if (inIfExpr || inWhileExpr) {
+			ifwhileFlag = true;
+		}
 	}
 }
 
@@ -707,6 +820,8 @@ function hexToString(hex) {
 // Returns the number (name) of the scope that it was found in
 function STscopesearch (node, id) {
 
+	console.log("ST scope search | start node : " + node.scope + "	id: " + id);
+
 	var found = false;
 
 	while (node.parent !== undefined && !found) {
@@ -757,14 +872,14 @@ function tableSearch(id) {
 
 	var table = "";
 
-	for (var i = 0; i < heapData.length; i++) {
-		if (heapData[i].variable = id) {
+	for (var i = 0; i < heapData.entries.length; i++) {
+		if (heapData.entries[i].variable = id) {
 			table = "heap";
 		}
 	}
 
-	for (var j = 0; j < staticData.length; j++) {
-		if (staticData[i].variable = id) {
+	for (var j = 0; j < staticData.entries.length; j++) {
+		if (staticData.entries[j].variable = id) {
 			table = "static";
 		}
 	}
@@ -780,7 +895,7 @@ function backpatch() {
 
 	// Convert to hex: yourNumber.toString(16);
 
-	// First go through static data table and backpatch all values
+	// First go through STATIC data table and backpatch all values
 	for (var i = 0; i < staticData.entries.length; i++) {
 
 		// Address to store variable at in environment
@@ -789,8 +904,6 @@ function backpatch() {
 
 		// Makes address of form "0#"
 		if (address.length < 2) { address = "0" + address; }
-
-		console.log("BACKPATCH ADDRESS: " + address);
 
 		// Fill cell in environment table with 00 as placeholder for variable
 		execEnv.addEntry("00");
@@ -806,11 +919,10 @@ function backpatch() {
 			for (var col = 0; col < 8; col++) {
 				// If an instance of the variable, replace with address
 				if (execEnv.content[row][col] == temp) {
-					console.log("REPLACED TEMP");
+					console.log(execEnv.content[row][col]);
 					execEnv.content[row][col] = address;
 				}
 				else if (execEnv.content[row][col] == "XX") {
-					console.log("REPLACED XX");
 					execEnv.content[row][col] = "00";
 				}
 			}
@@ -820,8 +932,75 @@ function backpatch() {
 	}
 
 	// Heap variables are backpatched in code gen (once string is declared)
+	// Go through HEAP data and backpatch
+	for (var i = 0; i < heapData.entries.length; i++) {
 
-	// HOW DO JUMP VARIABLES???
+		// Address to store variable at in environment
+		// Starting index (in hex) of string in env.
+		var totalCells = execEnv.content.length * 8;
+		var startindex = totalCells + heapData.entries[i].offset - 1;
+		address = startindex.toString(16).toUpperCase();
+
+		// Makes address of form "0#"
+		if (address.length < 2) { address = "0" + address; }
+
+		// Fill cell in environment table with 00 as placeholder for variable
+		execEnv.addEntry("00");
+
+		// Temp value of variable
+		var temp = heapData.entries[i].temp;
+		// Extracts "T#" from string
+		temp = temp.substring(0,2);
+
+		// Replace all instances of temp variable with address
+		// Replace all instances of XX with 00
+		for (var row = 0; row < execEnv.content.length; row++) {
+			for (var col = 0; col < 8; col++) {
+				// If an instance of the variable, replace with address
+				if (execEnv.content[row][col] == temp) {
+					console.log(execEnv.content[row][col]);
+					execEnv.content[row][col] = address;
+				}
+				else if (execEnv.content[row][col] == "XX") {
+					execEnv.content[row][col] = "00";
+				}
+			}
+		}
+
+		heapData.entries[i].temp = address + "00";
+	}
+
+	// Go through jumps table and backpatch all values
+	for (var i = 0; i < jumpsTable.entries.length; i++) {
+
+		// Address to store variable at in environment
+		// (Hex number of next open position in table)
+		address = execEnv.frontindex.toString(16).toUpperCase();
+
+		// Makes address of form "0#"
+		if (address.length < 2) { address = "0" + address; }
+
+		// Fill cell in environment table with 00 as placeholder for variable
+		execEnv.addEntry("00");
+
+		// Temp value of variable
+		var temp = jumpsTable.entries[i].temp;
+		// Extracts "T#" from string
+		temp = temp.substring(0,2);
+
+		// Replace all instances of temp variable with address
+		// Replace all instances of XX with 00
+		for (var row = 0; row < execEnv.content.length; row++) {
+			for (var col = 0; col < 8; col++) {
+				// If an instance of the variable, replace with address
+				if (execEnv.content[row][col] == temp) {
+					execEnv.content[row][col] = address;
+				}
+			}
+		}
+
+		jumpsTable.entries[i].temp = address;
+	}
 
 	// Go through remaining cells in environment and fill with 00
 	for (var row = 0; row < execEnv.content.length; row++) {

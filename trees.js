@@ -164,6 +164,8 @@ function makeAST(cst) {
 					}
 				}
 
+				//console.log("leaf " + name + " childcount: " + childCounter);
+
 				// If the leaf is significant for the AST, record it
 				// Ignore op leaves
 				if (name !== "{" && name !== "}" && name !== "(" && name !== ")" && name !== "\"" && name !== "empty" && name !=="+" && name !== "-")
@@ -175,6 +177,9 @@ function makeAST(cst) {
 					// Decrement child counter
 					childCounter--;
 
+
+					//console.log("SIGNIFICANT LEAF dec childcount: " + childCounter);
+
 					if (childCounter == 0)
 					{
 						// If childCounter = 0, appropriate number of children
@@ -182,16 +187,21 @@ function makeAST(cst) {
 
 						// If processing children of equal? node, decrement equal?
 						// child counter
-						if (inEqual) { equalChildren--; }
+						if (inEqual) {
+							equalChildren--;
+							//console.log("equalChildren: " + equalChildren);
+						}
 
 						// If the two children of equal? node have been found
 						// after IntExprs step up another level
 						if (equalChildren == 0 && inOP) {
 
-							console.log("equal children = 0");
+							//console.log("equal children = 0");
 							ast.endChildren();
 
-							if (!ifWhile && oplevels == 1) { ast.endChildren(); }
+							if (!ifWhile && oplevels == 1) {
+								ast.endChildren();
+							}
 
 							// Sets counter to -1
 							equalChildren--;
@@ -199,11 +209,9 @@ function makeAST(cst) {
 
 						// If childCounter = 0 while in an op, step up another level
 						if (inOP) {
-							console.log("oplevels: " + oplevels);
 							for (var a = 1; a < oplevels; a++) {
 								ast.endChildren();
 							}
-							console.log("inOP over");
 							oplevels = 0;
 							inOP = false;
 						}
@@ -237,6 +245,7 @@ function makeAST(cst) {
 						ast.addNode("assign", "branch");
 						// has 2 children
 						childCounter = 2;
+						//console.log("assign branch, childcounter: " + childCounter);
 					}
 					else if (nodename == "VarDecl")		// VarDecl -> Type Id
 					{
@@ -266,6 +275,9 @@ function makeAST(cst) {
 
 							childCounter = 2;
 						}
+						else {
+							childCounter = 1;
+						}
 					}
 					else if (nodename == "while")	// While Expr
 					{
@@ -279,6 +291,7 @@ function makeAST(cst) {
 						ast.addNode("if", "branch");
 						// has 2 children
 						childCounter = 2;
+						//console.log("if branch childcount: " + childCounter);
 						ifWhile = true;
 					}
 					else if (nodename == "equal?")
@@ -287,12 +300,13 @@ function makeAST(cst) {
 						// has 2 children
 						childCounter = 2;
 						equalChildren = 2;
+						//console.log("equal branch childcount: " + childCounter);
 						inEqual = true;
 					}
 					else if (nodename == "Expr")
 					{
 						// has 1 child
-						childCounter = 1;
+						//childCounter = 1;
 					}
 
 				}

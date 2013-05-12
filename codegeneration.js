@@ -1,23 +1,43 @@
+/*
+
+Alex Reynolds
+CMPU-331
+Final Project
+
+codegeneration.js
+
+	- Generates assembly code based on the AST of the input
+*/
+
 // Generates code based on the AST
 function codeGeneration(ast) {
 
 	// Sets current symbol table node to root
 	symbolTable.curr = symbolTable.root;
+	console.log(symbolTable.curr.scope);
 	// Tracks current scope
-	var scopeCounter = 0;
+	var scopeCounter = -1;
 
 	// Tracks current temp variable number
 	// Begins at 0
 	var tempAcc = 0;
 	var jumpAcc = 0;
+	/*
 	// Flags for items requiring multiple levels of analyzing
 	// The variables hold the Temp locations of the items that must be updated
 	var boolEqualFlag = false;
 	var intExprFlag = false;
 	var ifwhileFlag = false;
+	var inIfExpr = false;
+	var inWhileExpr = false;
 	// Counts how many op entries have been made since jump call (for jump table)
 	var jumpCounter = 0;
+	// Counts how many entries have been made for true statement block for a while statement
+	var whileCounter = 0;
+	*/
 
+	// Creates environment
+	setEnvironment();
 
 
 	// Steps through the AST, starting at the root of the tree
@@ -77,9 +97,13 @@ function codeGeneration(ast) {
 				var type = STtypesearch(symbolTable.curr, id);
 				// Gets the scope value from most recent declaration in sym table
 				var scope = STscopesearch(symbolTable.curr, id);
+				//console.log("scope of " + id + " = " + scope);
+				
 
 				// If id is an int
 				if (type == "int" && !secondId) {
+
+					var temp = staticData.getEntry(id, scope).temp;
 
 					// If value is an IntExpr
 					if (isOp(value)) {
@@ -89,8 +113,8 @@ function codeGeneration(ast) {
 						if (!isNumber(newval)) {
 							// id must be evaluated with the int
 							var scope2 = STscopesearch(symbolTable.curr, newval[1]);
-							var temp2 = staticData.getEntry(newval[1], scope2);
-							assignIntId(temp, acc, temp2);
+							var temp2 = staticData.getEntry(newval[1], scope2).temp;
+							assignIntId(temp, newval[0], temp2);
 						}
 						else {
 							// Normal int assignment with newval as value
@@ -100,14 +124,14 @@ function codeGeneration(ast) {
 					}
 					// Else normal int assignment
 					else {
-						var temp = staticData.getEntry(id, scope).temp;
 						assignInt(temp, value);
 					}
 				}
 				// If id is a string
 				else if (type == "string" && !secondId) {
 
-					var temp = heapData.getEntry(id, scope);
+					console.log("ID: " + id + " SCOPE: " + scope);
+					temp = heapData.getEntry(id, scope).temp;
 					assignString(temp, id, scope, value);
 				}
 				// If id is a boolean
@@ -157,7 +181,7 @@ function codeGeneration(ast) {
 				if (isId(leftchild)) {
 					id1 = leftchild;
 					// Gets the temp location of LHC
-					var leftscope = STscopeesearch(symbolTable.curr, id1);
+					var leftscope = STscopesearch(symbolTable.curr, id1);
 					lefttemp = staticData.getEntry(id1, leftscope).temp;
 				}
 
@@ -201,16 +225,20 @@ function codeGeneration(ast) {
 				// If value is id
 				if (isId(value)) {
 					// Gets the scope value from most recent declaration in sym table
-					var scope = STscopesearch(symbolTable.curr, id);
+					var scope = STscopesearch(symbolTable.curr, value);
 					// See if value is in Static or Heap data (int or string)
-					var table = tableSearch(value);
-					if (table == "heap") {
-						type = "string";
+					var type = STtypesearch(symbolTable.curr, value);
+					console.log("TYPE = " + type);
+
+					if (type == "string") {
 						temp = heapData.getEntry(value, scope).temp;
 					}
-					else { 
-						type = "int";
+					else if (type == "int") { 
 						temp = staticData.getEntry(value, scope).temp;
+					}
+					else
+					{
+						console.log("ERROR can't figure out type!");
 					}
 
 					printId(temp, type);
@@ -279,7 +307,44 @@ function codeGeneration(ast) {
 				}
 			}
 			// NODE = WHILE
+			else if (node.name == "while")
+			{
+				var condition = node.children[0].name;
+
+				if (condition == "true") {
+					whileExprEval("01", jumpAcc);
+				}
+				else if (condition == "false") {
+					whileExprEval("00", jumpAcc);
+				}
+				else if (condition == "equal?") {
+					// Set inWhileExpr flag for equal? eval
+					inWhileExpr = true;
+				}
+				// while bool is true
+				// jump back to start of true
+			}
 			// NODE = IF
+			else if (node.name == "if")
+			{
+				var condition = node.children[0].name;
+
+				if (condition == "true") {
+					ifExprEval("01", jumpAcc);
+				}
+				else if (condition == "false") {
+					ifExprEval("00", jumpAcc);
+				}
+				else if (condition == "equal?") {
+					// Set inIfExpr flag for equal? eval
+					inIfExpr = true;
+				}
+			}
+			// NODE = ???
+			else {
+				console.log("ALERT MYSTERY NODE IN CODEGEN.");
+			}
+
 
 		// End branch node case
 		}
@@ -295,8 +360,27 @@ function codeGeneration(ast) {
 
 				symbolTable.curr = symbolTable.curr.parent;
 
-				// If going up a level while in an if/while statement, turn off flag and do... something
-				ifwhileFlag = false;
+				// If going up a level while in an if/while statement, statement is over, end flag
+				console.log("in if or while = false");
+				if (ifwhileFlag) {
+					inIfExpr = false;
+
+					// If in a while loop
+					if (inWhileExpr) {
+						// End while loop with jump to start of while expression
+						endWhile(inWhileExpr);
+						inWhileExpr = false;
+					}
+
+					ifwhileFlag = false;
+
+					// Note jump distance in Jumps table, reset counter
+					// Jump entry is the most recent in the table
+					var index = jumpsTable.entries.length - 1;
+					jumpsTable.entries[index].dist = jumpCounter + 1;
+					jumpCounter = 0;
+
+				}
 
 			}
 		}

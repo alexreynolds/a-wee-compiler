@@ -258,6 +258,8 @@ function parsePrintT()
 
 			// Ends print branch of tree, return to Statement node
 			syntaxTree.endChildren();
+
+			syntaxTree.endChildren();
 			
 			return;
 		}
@@ -503,7 +505,7 @@ function parseBooleanExprT(type)
 		syntaxTree.endChildren();
 
 		// End Boolean expr branch of tree, back to ??
-		syntaxTree.endChildren();
+		//syntaxTree.endChildren();
 
 	}
 	// If BooleanExpr is of type boolVal
