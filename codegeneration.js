@@ -14,7 +14,6 @@ function codeGeneration(ast) {
 
 	// Sets current symbol table node to root
 	symbolTable.curr = symbolTable.root;
-	console.log(symbolTable.curr.scope);
 	// Tracks current scope
 	var scopeCounter = -1;
 
@@ -107,6 +106,7 @@ function codeGeneration(ast) {
 
 					// If value is an IntExpr
 					if (isOp(value)) {
+						console.log("RHS OF ASSIGN IS OP");
 						// Evaluate the operations
 						var newval = intExprEval(node.children[1]);
 						// Operations contained a id, newval = [acc, id]
@@ -119,7 +119,8 @@ function codeGeneration(ast) {
 						else {
 							// Normal int assignment with newval as value
 							var temp = staticData.getEntry(id, scope).temp;
-							assignInt(temp, scope, newval);
+							console.log("RHS VALUE IS " + newval);
+							assignInt(temp, newval);
 						}
 					}
 					// Else normal int assignment
@@ -130,12 +131,13 @@ function codeGeneration(ast) {
 				// If id is a string
 				else if (type == "string" && !secondId) {
 
-					console.log("ID: " + id + " SCOPE: " + scope);
+					// console.log("ID: " + id + " SCOPE: " + scope);
 					temp = heapData.getEntry(id, scope).temp;
 					assignString(temp, id, scope, value);
 				}
 				// If id is a boolean
 				else if (type == "boolean" && !secondId) {
+					console.log("ID IS BOOLEAN");
 
 					var temp = staticData.getEntry(id, scope).temp;
 
@@ -189,7 +191,7 @@ function codeGeneration(ast) {
 				if (isId(rightchild)) {
 					id2 = rightchild;
 					// Gets the temp location of RHC
-					var rightscope = STscopeesearch(symbolTable.curr, id2);
+					var rightscope = STscopesearch(symbolTable.curr, id2);
 					righttemp = staticData.getEntry(id2, rightscope).temp;
 				}
 
@@ -228,12 +230,15 @@ function codeGeneration(ast) {
 					var scope = STscopesearch(symbolTable.curr, value);
 					// See if value is in Static or Heap data (int or string)
 					var type = STtypesearch(symbolTable.curr, value);
-					console.log("TYPE = " + type);
+					// console.log("TYPE = " + type);
 
 					if (type == "string") {
 						temp = heapData.getEntry(value, scope).temp;
 					}
 					else if (type == "int") { 
+						temp = staticData.getEntry(value, scope).temp;
+					}
+					else if (type == "boolean") {
 						temp = staticData.getEntry(value, scope).temp;
 					}
 					else
@@ -327,7 +332,9 @@ function codeGeneration(ast) {
 			// NODE = IF
 			else if (node.name == "if")
 			{
+				console.log("IF NODE");
 				var condition = node.children[0].name;
+				console.log("condition: " + condition);
 
 				if (condition == "true") {
 					ifExprEval("01", jumpAcc);
@@ -340,9 +347,15 @@ function codeGeneration(ast) {
 					inIfExpr = true;
 				}
 			}
+			// NODE = OP
+			else if (node.name == "+" || node.name == "-")
+			{
+				// Do nothing, should be handled in the parent node of op
+			}
 			// NODE = ???
 			else {
 				console.log("ALERT MYSTERY NODE IN CODEGEN.");
+				console.log("NODE: " + node.name);
 			}
 
 
@@ -361,7 +374,7 @@ function codeGeneration(ast) {
 				symbolTable.curr = symbolTable.curr.parent;
 
 				// If going up a level while in an if/while statement, statement is over, end flag
-				console.log("in if or while = false");
+				//console.log("in if or while = false");
 				if (ifwhileFlag) {
 					inIfExpr = false;
 
@@ -389,12 +402,12 @@ function codeGeneration(ast) {
 	// End of AST walkthrough()
 	};
 
-	console.log("AST WALKTHROUGH");
+	// console.log("AST WALKTHROUGH");
 	// Initial call for recursive astWalkthrough()
 	// Starts at ast root, depth 0
 	astWalkthrough(ast.root, 0);
 
-	console.log("BACKPATCH");
+	// console.log("BACKPATCH");
 	// Backpatch temporary values
 	backpatch();
 

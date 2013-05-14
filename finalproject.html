@@ -12,16 +12,22 @@ Spring 2013
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <title>A VERY ANNOYED COMPILER</title>
+
+<link href='http://fonts.googleapis.com/css?family=Bevan' rel='stylesheet' type='text/css'>
 </head>
 
 <style type="text/css">
 
 body {
-	font-family:Arial, Helvetica, sans-serif;
+	font-family: Arial, Helvetica, sans-serif;
 	font-size:12px;
     background-color:#33CCFF; 
-    text-align:right;
-    background:url("rage.jpg") no-repeat left fixed;
+    text-align:center;
+    background:url("background.jpg") no-repeat center center fixed;
+    -webkit-background-size: cover;
+    -moz-background-size: cover;
+    -o-background-size: cover;
+    background-size: cover;
 }
 
 td {
@@ -31,18 +37,34 @@ td {
 }
 
 .content {
-    background-color:#000;
+    /*background-color:#000;*/
+    background: rgb(54, 25, 25);
+    background: rgba(0, 0, 0, .2);
     padding:3%;
     display:inline-block;
     text-align:center;
     border-radius:10px;
     color:#FFF;
-    margin-right:5%;
+    margin-left:20%;
 }
 
 h1
 {
     color:#FF0000;
+    font-family: 'Bevan', Helvetica, sans-serif;
+    font-size: 2em;
+    margin-bottom: .5em;
+    line-height: 0;
+}
+
+h2 {
+    letter-spacing: 2px;
+    line-height: 1em;
+    margin-bottom: .3em;
+}
+
+span {
+    margin-bottom: .5em;
 }
 
 </style>
@@ -51,71 +73,24 @@ h1
 	
 <div class="content">
 
-<h2 align="center">Alex Reynolds - Compilers Final Project</h2>
-<h1 align="center">A VERY ANNOYED COMPILER</h1>
-<p align="center">Giving a voice to frustrated computers since 2013.</p><br>
+<h1 align="center">A RATHER IRKED COMPILER</h1>
+<h2 align="center">A Compiler by Alex Reynolds</h2>
+<span align="center">Giving a voice to frustrated computers since 2013.</span><br><br>
         
 <table align="center">
 <tr>
-<!--
-    <td>
-<p style="font-weight:bold">THE GRAMMAR</p><br>
-<pre style="text-align:left; font-size:12px">
-Program       ::== Statement $
-
-Statement     ::== print ( Expr )
-
-              ::== Id = Expr
-
-              ::== VarDecl
-
-              ::== { StatementList }
-
-StatementList ::== Statement StatementList
-
-              ::== ε
-
-Expr          ::== IntExpr
-
-              ::== StringExpr
-
-              ::== Id
-
-IntExpr       ::== digit op Expr
-
-              ::== digit
-
-StringExpr      ::== " CharList "
-
-CharList      ::== Char CharList
-
-              ::== Space CHarList
-
-              ::== ε
-
-VarDecl       ::== Type Id
-
-Type          ::== int | string
-
-Id            ::== Char
-
-Char          ::== a | b | c ... z
-
-Space         ::== the space character
-
-digit         ::== 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 0
-
-op            ::== + | -
-</pre>
 <td>
--->
-<td>
-<textarea id="TAsourceCode" cols="50" rows="15" placeholder="PUT ALL YOUR CODE IN HERE AND MAKE SURE IT WORKS GOD DAMNIT."></textarea>
+<textarea id="TAsourceCode" cols="20" rows="30" placeholder="PUT ALL YOUR CODE IN HERE AND MAKE SURE IT WORKS GOD DAMNIT."></textarea>
         <br><br>
         <input type="button" id="btnCompile" value="COMPILE, GO" onclick="btnCompile_click();"/>
-        <br><br>
-        <textarea id="output" cols="50" rows="30"></textarea>
+</td><td>
+ 
+        <textarea id="output" cols="40" rows="10" placeholder="OUTPUT WILL GO HERE ONE DAY."></textarea><br><br>
+        <textarea id="tree" cols="40" rows="10" placeholder="ABSTRACT SYNTAX TREE AND SYMBOL TABLE WILL BE HERE IF YOU EVEN MAKE IT THAT FAR."></textarea><br><br>
+        <textarea id="opcode" cols="40" rows="10" placeholder="ASSEMBLY CODE WILL GO HERE BUT YOU ARE PROBABLY NOT THAT COMPETENT."></textarea><br><br>
 </td>
+</tr>
+</table>
 
 <!-- SCRIPT TIME -->
 <script type="text/javascript" src="lexer.js"></script>	
@@ -235,21 +210,21 @@ function btnCompile_click()
 
 
             // Generate CST
-            putMessage("GENERATING A CST NOW.\n");
+            //putMessage("GENERATING A CST NOW.\n");
             parseTree();
 
             // Print out CST
-            var CSTstr = syntaxTree.toString();
-            putMessage(CSTstr);
-            putMessage("THERE'S YOUR DAMNED CONCRETE SYNTAX TREE.\n");
+            //var CSTstr = syntaxTree.toString();
+            //putMessage(CSTstr);
+            //putMessage("THERE'S YOUR DAMNED CONCRETE SYNTAX TREE.\n");
 
             // Generate AST from CST
-            putMessage("GENERATING AN AST NOW.\n");
+            putMessage("GENERATING AN ABSTRACT SYNTAX TREE NOW.\n");
             makeAST(syntaxTree);
 
             // Print out AST
             var ASTstr = ast.toString();
-            putMessage(ASTstr);
+            putMessageTree(ASTstr);
             putMessage("AND THERE'S YOUR DAMNED ABSTRACT SYNTAX TREE.\n");
 
             // Generate a symbol table from the AST
@@ -262,7 +237,7 @@ function btnCompile_click()
                 // Print out the symbol table
                 putMessage("\n");
                 var STstr = symbolTable.toString();
-                putMessage(STstr);
+                putMessageTree(STstr);
                 putMessage("AND THERE'S YOUR SYMBOL TABLE, SO THERE.");
                 putMessage("IT'S EVEN TYPE CHECKED AND EVERYTHING OH JOY.\n");
 
@@ -271,10 +246,8 @@ function btnCompile_click()
                 codeGeneration(ast);
                 // Print out code
                 finalopcode = execEnv.toString();
-                putMessage("HERE'S YOUR FINAL OP CODE. NOW SCRAM AND LEAVE ME ALONE.\n");
-                putMessage("=======");
-                putMessage(finalopcode);
-                putMessage("=======");
+                putMessageOp("HERE'S YOUR FINAL OP CODE. NOW SCRAM AND LEAVE ME ALONE.\n");
+                putMessageOp(finalopcode);
             }
             else
             {
@@ -291,6 +264,16 @@ function putMessage(msg)
     {
         document.getElementById("output").value += msg + "\n";
     }
+
+function putMessageTree(msg)
+{
+    document.getElementById("tree").value += msg + "\n";
+}
+
+function putMessageOp(msg)
+{
+    document.getElementById("opcode").value += msg + "\n";
+}
 
 // UTILS
 

@@ -131,22 +131,22 @@ function StaticDataTable () {
 		// Adds new entry to entries array
 		this.entries.push(entry);
 
-		console.log("ADDED STATIC ENTRY FOR " + varname + " AT SCOPE " + scope);
+		//console.log("ADDED STATIC ENTRY FOR " + varname + " AT SCOPE " + scope);
 	};
 
 	// Returns an entry from the table, given its variable name and scope
 	this.getEntry = function (varname, scope) {
 
-		console.log("Static get entry var: " + varname + " scope: " + scope);
+		//console.log("Static get entry var: " + varname + " scope: " + scope);
 
 		for (var i = 0; i < this.entries.length ; i++) {
 
 			var tempentry = this.entries[i];
 
-			console.log("name: " + tempentry.variable + " scope: " + tempentry.scope);
+			//console.log("name: " + tempentry.variable + " scope: " + tempentry.scope);
 
 			if (tempentry.variable == varname && tempentry.scope == scope) {
-				console.log("FOUND");
+				//console.log("FOUND");
 				return tempentry;
 			}
 
@@ -176,7 +176,7 @@ function HeapDataTable () {
 		// Adds new entry to entries array
 		this.entries.push(entry);
 
-		console.log("ADDED HEAP ENTRY FOR " + varname + " AT SCOPE " + scope);
+		//console.log("ADDED HEAP ENTRY FOR " + varname + " AT SCOPE " + scope);
 	};
 
 	// Returns an entry from the table, given its temp value
@@ -188,7 +188,7 @@ function HeapDataTable () {
 			var tempentry = this.entries[i];
 
 			if ((tempentry.variable == id) && (tempentry.scope == scope)) {
-				console.log("found entry");
+				// console.log("found entry");
 				return tempentry;
 			}
 
@@ -299,7 +299,7 @@ function declareString(id, temp, scope) {
 
 	// Add string variable to the Heap
 	heapData.newEntry(temp + "XX", id, scope);
-	console.log("string declared");
+	// console.log("string declared");
 }
 
 // Declares a boolean in the environment, given its name, Temp address (T#) & scope
@@ -321,9 +321,14 @@ function declareBoolean(id, temp, scope) {
 // Assigns an integer in the environment, given its Temp address (T#) and value
 function assignInt(temp, value) {
 
+	console.log("ASSIGN INT TO " + value);
+
 	// Note: temp here is the full Temp location (T#XX)
 
+
+	value = parseInt(value).toString(16).toUpperCase();
 	value = fixInt(value);
+	console.log("VALUE : " + value);
 
 	execEnv.addEntry("A9");						// Load accumulator
 	execEnv.addEntry(value);					// Store value in acc
@@ -338,6 +343,7 @@ function assignIntId(temp1, value, temp2) {
 
 	// Note: temp here is the full Temp location (T#XX)
 
+	value = parseInt(value).toString(16).toUpperCase();
 	value = fixInt(value);
 
 	execEnv.addEntry("A9");						// Load accumulator with a constant
@@ -356,7 +362,7 @@ function assignString(temp, id, scope, value) {
 
 	execEnv.addTailEntry("00");	// Signifies that the string is done
 
-	console.log("Adding string " + value + " of length " + value.length);
+	//console.log("Adding string " + value + " of length " + value.length);
 
 	// Steps backward through the string value
 	// Each value is converted to hex and then added to the end of the environment
@@ -367,17 +373,21 @@ function assignString(temp, id, scope, value) {
 	}
 
 	// The location of the start of the string in the environment
-	var stringLoc = execEnv.tailindex.toString(16);
+	var stringLoc = (execEnv.tailindex + 1).toString(16);
+	// console.log("string location in memory: " + stringLoc);
 
 	// Adds string data to the environment
+	/*
 	execEnv.addEntry("AC");
 	execEnv.addEntry(stringLoc);
 	execEnv.addEntry("8D");
 	execEnv.addEntry(temp.substring(0,2));
 	execEnv.addEntry(temp.substring(2,4));
+	*/
 
 	// Updates the offset in the string's entry in the heap
 	heapData.getEntry(id, scope).offset = -(value.length + 1);
+	// console.log("string offset: " + (-(value.length + 1)));
 	// Updates location in string's entry in heap
 	//heapData.getEntry(id, scope).temp = stringLoc + "00";
 }
@@ -386,13 +396,16 @@ function assignString(temp, id, scope, value) {
 function assignBoolean(temp, scope, value) {
 
 	if (value == "false") { value = "00"; }
-	else { value == "01"; }
+	else { value = "01"; }
+
+	console.log("bool value = " + value);
+	console.log("bool temp = " + temp);
 
 	execEnv.addEntry("A9");		// Load accumulator
 	execEnv.addEntry(value);	// Store value
 	execEnv.addEntry("8D");		// Store accumulator in memory
-	execEnv.addEntry(temp);		// Temp location
-	execEnv.addEntry("XX");		// T#XX
+	execEnv.addEntry(temp.substring(0,2));		// Temp location
+	execEnv.addEntry(temp.substring(2,4));		// T#XX
 
 }
 
@@ -420,12 +433,15 @@ function printId(temp, type) {
 		execEnv.addEntry("FF");					// System call
 	}
 	else if (type == "string") {
-		execEnv.addEntry("AC");					// Load accumulator
+		execEnv.addEntry("A0");					// Load accumulator
 		execEnv.addEntry(temp.substring(0,2));	// With id value
-		execEnv.addEntry(temp.substring(2,4));
+		// execEnv.addEntry(temp.substring(2,4));
 		execEnv.addEntry("A2");					// Load X reg with 2
 		execEnv.addEntry("02");					// (2 = print string)
 		execEnv.addEntry("FF");					// System call
+	}
+	else if (type == "boolean") {
+		printBoolean(temp);
 	}
 	else
 	{
@@ -437,7 +453,10 @@ function printId(temp, type) {
 // Prints the value of an int, given its temp address and type
 function printInt(value, temp, temploc) {
 
-		value = fixInt(parseInt(value));
+		// Converts int to hex
+		value = parseInt(value).toString(16).toUpperCase();
+		// Makes value two characters long
+		value = fixInt(value);
 
 		// If printing an int expression with an id
 		if (temp) {
@@ -473,9 +492,9 @@ function printInt(value, temp, temploc) {
 // Prints a string, given its temp address
 function printString(temp) {
 
-	execEnv.addEntry("AC");					// Load accumulator
+	execEnv.addEntry("A0");					// Load Y register
 	execEnv.addEntry(temp.substring(0,2));	// With string value from temp
-	execEnv.addEntry(temp.substring(2,4));
+	//execEnv.addEntry(temp.substring(2,4));
 	execEnv.addEntry("A2");					// Load X reg with 2
 	execEnv.addEntry("02");					// (2 = print string)
 	execEnv.addEntry("FF");					// System call
@@ -483,13 +502,62 @@ function printString(temp) {
 
 // Prints a boolean, given its temp address
 function printBoolean(temp) {
+	console.log("PRINT BOOLEAN");
+	console.log("bool temp: " + temp);
 	
-	execEnv.addEntry("AC");					// Load accumulator
-	execEnv.addEntry(temp.substring(0,2));	// With string value from temp
-	execEnv.addEntry(temp.substring(2,4));
-	execEnv.addEntry("A2");					// Load X reg with 2
-	execEnv.addEntry("02");					// (2 = print string)
-	execEnv.addEntry("FF");					// System call
+	if (temp == "B1XX") {
+		execEnv.addEntry("A0");			// Load Y reg with constant
+		execEnv.addEntry("B1");			// The address of the string "true"
+		execEnv.addEntry("A2");			// Load X reg with 2
+		execEnv.addEntry("02");
+		execEnv.addEntry("FF");			// System call
+	}
+	else if (temp == "B2XX") {
+		execEnv.addEntry("A0");			// Load Y reg with constant
+		execEnv.addEntry("B2");			// The address of the string "false"
+		execEnv.addEntry("A2");			// Load X reg with 2
+		execEnv.addEntry("02");
+		execEnv.addEntry("FF");			// System call
+	}
+	else {
+		/*
+		execEnv.addEntry("AC");					// Load accumulator
+		execEnv.addEntry(temp.substring(0,2));	// With string value from temp
+		execEnv.addEntry(temp.substring(2,4));
+		execEnv.addEntry("A2");					// Load X reg with 2
+		execEnv.addEntry("02");					// (2 = print string)
+		execEnv.addEntry("FF");					// System call
+		*/
+		// Printing a variable boolean
+		execEnv.addEntry("AE");
+		execEnv.addEntry(temp.substring(0,2));
+		execEnv.addEntry(temp.substring(2,4));	// Load contents of variable to X register
+		execEnv.addEntry("EC");	// Compare byte in memory to variable val in X reg
+		execEnv.addEntry("B0");	// Byte is true (01)
+		execEnv.addEntry("XX");
+		execEnv.addEntry("D0");	// Branch on not equal
+		execEnv.addEntry("0D");	// Jump to not equal (print false) - 13 positions
+		// IF BOOLEAN IS TRUE
+		execEnv.addEntry("A0");		// Load Y reg with constant
+		execEnv.addEntry("B1");		// address of string true
+		execEnv.addEntry("A2");		// Load X reg with 2
+		execEnv.addEntry("02");
+		execEnv.addEntry("FF");		// System call
+		execEnv.addEntry("A2");		// Load X reg with constant 0
+		execEnv.addEntry("00");
+		execEnv.addEntry("EC");		// Compare to byte 01 in memory
+		execEnv.addEntry("B0");		// (will evaluate to false)
+		execEnv.addEntry("XX");
+		execEnv.addEntry("D0");		// Branch on not true
+		execEnv.addEntry("05");		// Jump past false print statement
+		// IF BOOLEAN IS FALSE
+		execEnv.addEntry("A0");		// Load Y reg with constant
+		execEnv.addEntry("B2");		// address of string false
+		execEnv.addEntry("A2");		// Load X reg with 2
+		execEnv.addEntry("02");
+		execEnv.addEntry("FF");		// System call
+
+	}
 }
 
 // Evaluates Int Expressions with operations and returns the final value
@@ -548,6 +616,7 @@ function intExprEval(startnode) {
 
 // Performs operations for an If expression
 function ifExprEval(boolVal, jumpCount) {
+	console.log("IFEXPREVAL");
 
 	// Temporary location for jump
 	var jumpTemp = "J" + jumpCount;
@@ -599,20 +668,22 @@ function endWhile(destindex) {
 
 	// Get a true comparison and jump back to start of while loop
 	execEnv.addEntry("A2");		// Load boolean into X reg
-	execEnv.addEntry("01");
+	execEnv.addEntry("00");
 	execEnv.addEntry("EC");		// Compare to bool val true (01)
 	execEnv.addEntry("B0");		// Stored at B0XX
 	execEnv.addEntry("XX");
 	execEnv.addEntry("D0");		// Branch if z flag = 0
+	// Branches because false and jumps back to the start of the loop
+	// (Jump added below)
 
 	// Get value of jump
 	// To jump backwards (to start of loop), jump forwards in position
 	// until pos loops at 255 and starts back at 0
 	var currIndex = execEnv.frontindex;
-	var jumpDist = destindex + 255 - currIndex;
+	var jumpDist = destindex + 255 - currIndex + 1;
 	// Convert jump distance to hex and add to environment at end of while loop
 	jumpDist = jumpDist.toString(16).toUpperCase();
-	console.log("JUMPDIST: " + jumpDist);
+	// console.log("JUMPDIST: " + jumpDist);
 	execEnv.addEntry(jumpDist);
 }
 
@@ -624,6 +695,7 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 	var jumpTemp = "J" + jumpCount.toString();
 	var idtemp = "";
 	var constant = "";
+	var id = "";
 	var constantType = checkType(constant);
 
 	// Sets inWhileExpr flag to first index of the while statement cond
@@ -650,42 +722,64 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 		// Sets temp location of id and constant to check
 		if (lefttemp) {
 			idtemp = lefttemp; 
+			id = lhs;
 			constant = rhs;
 		}
 		else {
 			idtemp = righttemp;
+			id = rhs;
 			constant = lhs;
 		}
+
+		var type = STtypesearch(symbolTable.curr, id);
+		console.log("id type: " + type);
+
+		// Get type of constant
+		constantType = checkType(constant);
+		console.log("constant: " + constantType);
 
 		// If checking variable against int
 		if (constantType == "int") {
 
+			// Converts the constant to hex
+			constant.toString(16).toUpperCase();
+			// Fixes number to be two digits
+			constant = fixInt(constant);
+			console.log("constant after being fixed up: " + constant);
+
 			execEnv.addEntry("A2");		// Load X reg with int constant
-			execEnv.addEntry(parseInt(constant));
+			execEnv.addEntry(constant);
 			execEnv.addEntry("EC");		// Check X reg against contents of id
 			execEnv.addEntry(idtemp.substring(0,2));
 			execEnv.addEntry(idtemp.substring(2,4));
-			execEnv.addEntry("DO");		// Branch on NOT EQUAL
+			execEnv.addEntry("D0");		// Branch on NOT EQUAL
 			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
 		}
 		// If checking variable against a boolean
 		else if (constantType == "boolean") {
+			// Problems arise if variable is an int of 0 or 1
+			// If this is true, skip if because it will only evaluate to false anyway
+			if (type !== "boolean") {
+				// Automatically branch on not equal
+				execEnv.addEntry("D0");
+				execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
+			}
+			else {
+				// If constant is an equal? **** IGNORE FOR NOW
+				if (constant == "equal?") { console.log("ALERT NESTED EQUALS GO HOME AND CRY NOW."); }
+				// Resets constant to a numerical boolean value
+				else if (constant == "true") { constant = "01"; }
+				else if (constant == "false") { constant = "00"; }
 
-			// If constant is an equal? **** IGNORE FOR NOW
-			if (constant == "equal?") { console.log("ALERT NESTED EQUALS GO HOME AND CRY NOW."); }
-
-			// Resets constant to a numerical boolean value
-			if (constant == "true") { constant = "01"; }
-			else { constant = "00"; }
-
-			execEnv.addEntry("A2");		// Load X reg with boolean value
-			execEnv.addEntry(constant);
-			execEnv.addEntry("EC");		// Check X reg against contents of id
-			execEnv.addEntry(idtemp.substring(0,2));
-			execEnv.addEntry(idtemp.substring(2,4));
-			execEnv.addEntry("DO");		// Branch on NOT EQUAL
-			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
+				execEnv.addEntry("A2");		// Load X reg with boolean value
+				execEnv.addEntry(constant);
+				execEnv.addEntry("EC");		// Check X reg against contents of id
+				execEnv.addEntry(idtemp.substring(0,2));
+				execEnv.addEntry(idtemp.substring(2,4));
+				execEnv.addEntry("D0");		// Branch on NOT EQUAL
+				execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
+			}
 
 		}
 		// If checking variable against a string
@@ -709,7 +803,7 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 			execEnv.addEntry("EC");		// Check X reg against boolean true
 			execEnv.addEntry("B0");
 			execEnv.addEntry("XX");
-			execEnv.addEntry("DO");		// Branch on NOT EQUAL
+			execEnv.addEntry("D0");		// Branch on NOT EQUAL
 			execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
 		}
@@ -732,7 +826,7 @@ function equalEval(lhs, rhs, lefttemp, righttemp, flag, jumpCount) {
 		execEnv.addEntry("EC");		// Check X reg against boolean true
 		execEnv.addEntry("B0");
 		execEnv.addEntry("XX");
-		execEnv.addEntry("DO");		// Branch on NOT EQUAL
+		execEnv.addEntry("D0");		// Branch on NOT EQUAL
 		execEnv.addEntry(jumpTemp);	// Jump ahead to code executed after true
 
 	}
@@ -857,6 +951,7 @@ function STtypesearch (node, id) {
 
 			if (currid == id) {
 				found = true;
+				console.log("TYPE = " + node.ids[i].getType());
 				return node.ids[i].getType();
 			}
 		}
@@ -891,6 +986,9 @@ function tableSearch(id) {
 // Goes through the environment and backpatches temporary variables
 function backpatch() {
 
+	// Add a 00 to the end of the environment (tells system to break)
+	execEnv.addEntry("00");
+
 	var address = execEnv.frontindex;
 
 	// Convert to hex: yourNumber.toString(16);
@@ -919,7 +1017,7 @@ function backpatch() {
 			for (var col = 0; col < 8; col++) {
 				// If an instance of the variable, replace with address
 				if (execEnv.content[row][col] == temp) {
-					console.log(execEnv.content[row][col]);
+					//console.log(execEnv.content[row][col]);
 					execEnv.content[row][col] = address;
 				}
 				else if (execEnv.content[row][col] == "XX") {
@@ -931,14 +1029,17 @@ function backpatch() {
 		staticData.entries[i].temp = address + "00";
 	}
 
+	// Starting index for heap variables
+	var totalCells = execEnv.content.length * 8;
+	var startindex = totalCells;
+
 	// Heap variables are backpatched in code gen (once string is declared)
 	// Go through HEAP data and backpatch
 	for (var i = 0; i < heapData.entries.length; i++) {
 
 		// Address to store variable at in environment
 		// Starting index (in hex) of string in env.
-		var totalCells = execEnv.content.length * 8;
-		var startindex = totalCells + heapData.entries[i].offset - 1;
+		startindex+=heapData.entries[i].offset;
 		address = startindex.toString(16).toUpperCase();
 
 		// Makes address of form "0#"
@@ -958,7 +1059,7 @@ function backpatch() {
 			for (var col = 0; col < 8; col++) {
 				// If an instance of the variable, replace with address
 				if (execEnv.content[row][col] == temp) {
-					console.log(execEnv.content[row][col]);
+					// console.log(execEnv.content[row][col]);
 					execEnv.content[row][col] = address;
 				}
 				else if (execEnv.content[row][col] == "XX") {

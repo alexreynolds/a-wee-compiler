@@ -194,7 +194,7 @@ function makeToken(curr, currkind, currline, position)
 		var t = new Token(curr, currkind, currline, position);
 		tokens.push(t);
 		var update = t.toString;
-		putMessage(update);
+		// putMessage(update);
 		
 	}
 	
